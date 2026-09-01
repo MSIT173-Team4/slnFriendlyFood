@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="prjFriendlyFoodMVC/prjFriendlyFoodMVC.csproj" />
+  <Project Path="prjFriendlyFoodWebAPI/prjFriendlyFoodWebAPI.csproj" />
+</Solution>
