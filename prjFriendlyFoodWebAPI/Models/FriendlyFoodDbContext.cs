@@ -1494,6 +1494,14 @@ public partial class FriendlyFoodDbContext : DbContext
             entity.Property(e => e.FCreatedAt).HasColumnName("fCreatedAt");
             entity.Property(e => e.FExpirationDate).HasColumnName("fExpirationDate");
             entity.Property(e => e.FIngredientId).HasColumnName("fIngredientId");
+            entity.Property(e => e.FNote)
+                .HasMaxLength(150)
+                .HasColumnName("fNote");
+            entity.Property(e => e.FStorageLocation)
+                .IsRequired()
+                .HasMaxLength(20)
+                .HasDefaultValue("冷藏", "DF_Pantry_Storage")
+                .HasColumnName("fStorageLocation");
             entity.Property(e => e.FUnit)
                 .IsRequired()
                 .HasMaxLength(20)
