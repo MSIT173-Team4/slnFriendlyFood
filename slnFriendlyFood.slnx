@@ -1,4 +1,9 @@
 <Solution>
+  <Folder Name="/Solution Items/" />
+  <Folder Name="/方案項目/">
+    <File Path=".env" />
+  </Folder>
   <Project Path="prjFriendlyFoodMVC/prjFriendlyFoodMVC.csproj" />
   <Project Path="prjFriendlyFoodWebAPI/prjFriendlyFoodWebAPI.csproj" />
+  <Project Path="SmartBot.Api/SmartBot.Api.csproj" Id="abd47c47-a5ee-4498-955e-d6e19810da97" />
 </Solution>
