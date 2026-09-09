@@ -107,9 +107,11 @@ public partial class FriendlyFoodDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.UseCollation("Chinese_Taiwan_Stroke_CI_AS");
+
         modelBuilder.Entity<TApply>(entity =>
         {
-            entity.HasKey(e => e.FId).HasName("PK__tApply__D9F8227C831518DD");
+            entity.HasKey(e => e.FId).HasName("PK__tApply__D9F8227C89416337");
 
             entity.ToTable("tApply");
 
@@ -154,7 +156,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TApplyStatus>(entity =>
         {
-            entity.HasKey(e => e.FId).HasName("PK__tApplySt__D9F8227C0BC14856");
+            entity.HasKey(e => e.FId).HasName("PK__tApplySt__D9F8227CEEADF9F1");
 
             entity.ToTable("tApplyStatus");
 
@@ -202,7 +204,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TConversationMember>(entity =>
         {
-            entity.HasKey(e => new { e.FConversationId, e.FUserId }).HasName("PK__tConvers__8DB173362E427A37");
+            entity.HasKey(e => new { e.FConversationId, e.FUserId }).HasName("PK__tConvers__8DB173362B53D891");
 
             entity.ToTable("tConversationMember");
 
@@ -216,12 +218,12 @@ public partial class FriendlyFoodDbContext : DbContext
             entity.HasOne(d => d.FConversation).WithMany(p => p.TConversationMembers)
                 .HasForeignKey(d => d.FConversationId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__tConversa__fConv__3BFFE745");
+                .HasConstraintName("FK__tConversa__fConv__57DD0BE4");
 
             entity.HasOne(d => d.FUser).WithMany(p => p.TConversationMembers)
                 .HasForeignKey(d => d.FUserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__tConversa__fUser__3CF40B7E");
+                .HasConstraintName("FK__tConversa__fUser__58D1301D");
         });
 
         modelBuilder.Entity<TConversationMessagesTable>(entity =>
@@ -700,6 +702,7 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasComment("商店端唯一,對應綠界MerchantTradeNo")
                 .HasColumnName("fBatchNo");
             entity.Property(e => e.FCreatedDate)
+                .HasDefaultValueSql("(sysdatetime())")
                 .HasComment("建立日期")
                 .HasColumnName("fCreatedDate");
             entity.Property(e => e.FPaidAt)
@@ -754,7 +757,7 @@ public partial class FriendlyFoodDbContext : DbContext
                 .IsRequired()
                 .HasMaxLength(20)
                 .IsUnicode(false)
-                .HasComment("折抵類型")
+                .HasComment("折抵類型 (Fixed: 固定金額 / Percentage: 比例折扣)")
                 .HasColumnName("fDiscountType");
             entity.Property(e => e.FDiscountValue)
                 .HasComment("比例折抵值")
@@ -783,7 +786,7 @@ public partial class FriendlyFoodDbContext : DbContext
                 .IsRequired()
                 .HasMaxLength(20)
                 .IsUnicode(false)
-                .HasComment("適用範圍")
+                .HasComment("適用範圍 (Shipping: 運費券 / Platform: 全站券 / Store: 賣場券)")
                 .HasColumnName("fScopeType");
             entity.Property(e => e.FSellerId)
                 .HasComment("商家編號")
@@ -824,6 +827,7 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasComment("賣家是否已確認/列印出貨單；0 未確認 1 已確認/已列印")
                 .HasColumnName("fIsShippingConfirmed");
             entity.Property(e => e.FOrderDate)
+                .HasDefaultValueSql("(sysdatetime())")
                 .HasComment("訂單日期")
                 .HasColumnName("fOrderDate");
             entity.Property(e => e.FOrderNo)
@@ -941,7 +945,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TMarketOrderDiscount>(entity =>
         {
-            entity.HasKey(e => e.FOrderDiscountId).HasName("PK_tMarketOrderDiscounts");
+            entity.HasKey(e => e.FOrderDiscountId);
 
             entity.ToTable("tMarketOrderDiscount", tb => tb.HasComment("訂單折扣快照(結帳當下優惠券套用紀錄)"));
 
@@ -1068,7 +1072,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TMarketProductCategory>(entity =>
         {
-            entity.HasKey(e => e.FCategoryId).HasName("PK_tMarketProductsCategory");
+            entity.HasKey(e => e.FCategoryId);
 
             entity.ToTable("tMarketProductCategory", tb => tb.HasComment("商品分類(自我參照,支援多層)"));
 
@@ -1099,7 +1103,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TMarketProductFavorite>(entity =>
         {
-            entity.HasKey(e => e.FFavoriteId).HasName("PK_tMarketFavorites");
+            entity.HasKey(e => e.FFavoriteId);
 
             entity.ToTable("tMarketProductFavorite", tb => tb.HasComment("商品收藏"));
 
@@ -1109,7 +1113,7 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasComment("收藏ID")
                 .HasColumnName("fFavoriteID");
             entity.Property(e => e.FCreatedDate)
-                .HasDefaultValueSql("(getdate())")
+                .HasDefaultValueSql("(sysdatetime())")
                 .HasComment("加入時間")
                 .HasColumnName("fCreatedDate");
             entity.Property(e => e.FProductId)
@@ -1140,6 +1144,7 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasComment("圖片ID")
                 .HasColumnName("fProductImageID");
             entity.Property(e => e.FCreatedDate)
+                .HasDefaultValueSql("(sysdatetime())")
                 .HasComment("建立日期")
                 .HasColumnName("fCreatedDate");
             entity.Property(e => e.FImageUrl)
@@ -1162,7 +1167,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TMarketProductReview>(entity =>
         {
-            entity.HasKey(e => e.FReviewId).HasName("PK_tMarketProductReviews");
+            entity.HasKey(e => e.FReviewId);
 
             entity.ToTable("tMarketProductReview", tb => tb.HasComment("商品評論"));
 
@@ -1175,7 +1180,7 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasComment("評論內容")
                 .HasColumnName("fComment");
             entity.Property(e => e.FCreatedDate)
-                .HasDefaultValueSql("(getdate())")
+                .HasDefaultValueSql("(sysdatetime())")
                 .HasComment("評論時間")
                 .HasColumnName("fCreatedDate");
             entity.Property(e => e.FOrderDetailsId)
@@ -1209,7 +1214,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TMarketShoppingCart>(entity =>
         {
-            entity.HasKey(e => e.FCartItemId).HasName("PK_tMarketShoppingCarts");
+            entity.HasKey(e => e.FCartItemId);
 
             entity.ToTable("tMarketShoppingCart", tb => tb.HasComment("購物車"));
 
@@ -1494,6 +1499,14 @@ public partial class FriendlyFoodDbContext : DbContext
             entity.Property(e => e.FCreatedAt).HasColumnName("fCreatedAt");
             entity.Property(e => e.FExpirationDate).HasColumnName("fExpirationDate");
             entity.Property(e => e.FIngredientId).HasColumnName("fIngredientId");
+            entity.Property(e => e.FNote)
+                .HasMaxLength(150)
+                .HasColumnName("fNote");
+            entity.Property(e => e.FStorageLocation)
+                .IsRequired()
+                .HasMaxLength(20)
+                .HasDefaultValue("冷藏", "DF_Pantry_Storage")
+                .HasColumnName("fStorageLocation");
             entity.Property(e => e.FUnit)
                 .IsRequired()
                 .HasMaxLength(20)
@@ -1508,7 +1521,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TSeller>(entity =>
         {
-            entity.HasKey(e => e.FId).HasName("PK__tSeller__D9F8227C9C2BF71E");
+            entity.HasKey(e => e.FId).HasName("PK__tSeller__D9F8227C08DBAF71");
 
             entity.ToTable("tSeller");
 
@@ -1554,7 +1567,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TStatus>(entity =>
         {
-            entity.HasKey(e => e.FId).HasName("PK__tStatus__D9F8227C436EF4E5");
+            entity.HasKey(e => e.FId).HasName("PK__tStatus__D9F8227C1A5B5342");
 
             entity.ToTable("tStatus");
 
@@ -1570,11 +1583,11 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TUser>(entity =>
         {
-            entity.HasKey(e => e.FId).HasName("PK__tUser__D9F8227C4FFDA349");
+            entity.HasKey(e => e.FId).HasName("PK__tUser__D9F8227C865287D3");
 
             entity.ToTable("tUser");
 
-            entity.HasIndex(e => e.FUsername, "UQ__tUser__A8F6564A98DB2DF7").IsUnique();
+            entity.HasIndex(e => e.FUsername, "UQ__tUser__A8F6564A0F493ED4").IsUnique();
 
             entity.Property(e => e.FId).HasColumnName("fId");
             entity.Property(e => e.FAddress)
@@ -1605,18 +1618,13 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasColumnName("fLastLogin");
             entity.Property(e => e.FPassword)
                 .IsRequired()
-                .HasMaxLength(20)
+                .HasMaxLength(60)
                 .HasColumnName("fPassword");
             entity.Property(e => e.FPhone)
                 .IsRequired()
                 .HasMaxLength(10)
                 .IsUnicode(false)
                 .HasColumnName("fPhone");
-            entity.Property(e => e.FUsercode)
-                .IsRequired()
-                .HasMaxLength(32)
-                .IsUnicode(false)
-                .HasColumnName("fUsercode");
             entity.Property(e => e.FUsername)
                 .IsRequired()
                 .HasMaxLength(16)

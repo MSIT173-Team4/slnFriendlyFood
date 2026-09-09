@@ -9,11 +9,9 @@ public partial class TUser
 {
     public int FId { get; set; }
 
-    public string FUsercode { get; set; }
-
     public string FUsername { get; set; }
 
-    public byte[] FPassword { get; set; }
+    public string FPassword { get; set; }
 
     public string FEmail { get; set; }
 
