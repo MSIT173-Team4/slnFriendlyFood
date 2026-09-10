@@ -1,9 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using prjFriendlyFoodWebAPI.DTOs.FoodMap;
 using prjFriendlyFoodWebAPI.Models;
-using prjFriendlyFoodWebAPI.Services.Interfaces;
+using prjFriendlyFoodWebAPI.Services.FoodMap.Interfaces;
 
-namespace prjFriendlyFoodWebAPI.Services
+namespace prjFriendlyFoodWebAPI.Services.FoodMap
 {
     public class PlaceService : IFoodMapService
     {

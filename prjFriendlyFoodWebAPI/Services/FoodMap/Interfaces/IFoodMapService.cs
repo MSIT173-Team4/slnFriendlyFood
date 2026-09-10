@@ -1,6 +1,6 @@
 ﻿using prjFriendlyFoodWebAPI.DTOs.FoodMap;
 
-namespace prjFriendlyFoodWebAPI.Services.Interfaces
+namespace prjFriendlyFoodWebAPI.Services.FoodMap.Interfaces
 {
     public interface IFoodMapService
     {

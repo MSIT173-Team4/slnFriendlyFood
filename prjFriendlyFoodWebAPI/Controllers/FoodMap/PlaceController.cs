@@ -1,9 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using prjFriendlyFoodWebAPI.DTOs.FoodMap;
 using prjFriendlyFoodWebAPI.Services;
-using prjFriendlyFoodWebAPI.Services.Interfaces;
+using prjFriendlyFoodWebAPI.Services.FoodMap.Interfaces;
 
-namespace prjFriendlyFoodWebAPI.Controllers
+namespace prjFriendlyFoodWebAPI.Controllers.FoodMap
 {
     [ApiController]
     [Route("api/[controller]")]
