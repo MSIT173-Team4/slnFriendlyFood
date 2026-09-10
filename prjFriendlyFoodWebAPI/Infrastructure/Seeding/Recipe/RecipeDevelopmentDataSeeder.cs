@@ -1,4 +1,3 @@
-using System.Text;
 using Microsoft.EntityFrameworkCore;
 using prjFriendlyFoodWebAPI.Models;
 
@@ -8,8 +7,8 @@ public sealed class RecipeDevelopmentDataSeeder(
     FriendlyFoodDbContext context,
     ILogger<RecipeDevelopmentDataSeeder> logger) : IRecipeDataSeeder
 {
-    private const string DemoOwnerCode = "recipe-demo-owner";
-    private const string DemoTesterCode = "recipe-demo-tester";
+    private const string DemoOwnerUsername = "recipe.demo";
+    private const string DemoTesterUsername = "recipe.tester";
 
     public async Task SeedAsync(CancellationToken cancellationToken = default)
     {
@@ -46,12 +45,12 @@ public sealed class RecipeDevelopmentDataSeeder(
         CancellationToken cancellationToken)
     {
         var owner = await context.TUsers
-            .FirstOrDefaultAsync(user => user.FUsercode == DemoOwnerCode, cancellationToken);
+            .FirstOrDefaultAsync(user => user.FUsername == DemoOwnerUsername, cancellationToken);
         var tester = await context.TUsers
-            .FirstOrDefaultAsync(user => user.FUsercode == DemoTesterCode, cancellationToken);
+            .FirstOrDefaultAsync(user => user.FUsername == DemoTesterUsername, cancellationToken);
 
-        owner ??= CreateUser(DemoOwnerCode, "recipe.demo", "recipe.demo@friendlyfood.local", "A123456789");
-        tester ??= CreateUser(DemoTesterCode, "recipe.tester", "recipe.tester@friendlyfood.local", "B123456789");
+        owner ??= CreateUser(DemoOwnerUsername, "recipe.demo@friendlyfood.local", "A123456789");
+        tester ??= CreateUser(DemoTesterUsername, "recipe.tester@friendlyfood.local", "B123456789");
 
         if (owner.FId == 0)
         {
@@ -171,70 +170,62 @@ public sealed class RecipeDevelopmentDataSeeder(
             {
                 recipe = new TRecipe
                 {
-                    FUserId = ownerId,
-                    FCategoryId = categories[definition.Category].FCategoryId,
                     FTitle = definition.Title,
-                    FDescription = definition.Description,
-                    FCoverImageUrl = definition.CoverImageUrl,
-                    FAiPrepTips = "優先使用即期食材，並在烹調前完成食材狀態確認。",
-                    FIsAiGenerated = definition.IsAiGenerated,
-                    FDefaultServings = definition.Servings,
-                    FCookingMinutes = definition.CookingMinutes,
-                    FTotalCalories = definition.Calories,
-                    FViews = 120,
-                    FStatus = 1,
-                    FCreatedAt = DateTime.UtcNow,
-                    FUpdatedAt = DateTime.UtcNow
+                    FCreatedAt = DateTime.UtcNow
                 };
                 context.TRecipes.Add(recipe);
-                await context.SaveChangesAsync(cancellationToken);
             }
 
-            if (!await context.TRecipeIngredients.AnyAsync(
-                    item => item.FRecipeId == recipe.FRecipeId,
-                    cancellationToken))
-            {
-                context.TRecipeIngredients.AddRange(definition.Ingredients.Select((item, index) =>
-                    new TRecipeIngredient
-                    {
-                        FRecipeId = recipe.FRecipeId,
-                        FIngredientId = ingredients[item.Name].FId,
-                        FDisplayAmount = item.DisplayAmount,
-                        FBaseAmount = item.BaseAmount,
-                        FStandardUnit = item.Unit,
-                        FIsMain = item.IsMain,
-                        FSortOrder = (short)(index + 1)
-                    }));
-            }
+            recipe.FUserId = ownerId;
+            recipe.FCategoryId = categories[definition.Category].FCategoryId;
+            recipe.FDescription = definition.Description;
+            recipe.FCoverImageUrl = definition.CoverImageUrl;
+            recipe.FAiPrepTips = $"資料來源：{definition.SourceName}｜{definition.SourceUrl}。{definition.SafetyNote}";
+            recipe.FIsAiGenerated = definition.IsAiGenerated;
+            recipe.FDefaultServings = definition.Servings;
+            recipe.FCookingMinutes = definition.CookingMinutes;
+            recipe.FTotalCalories = definition.Calories;
+            recipe.FViews = Math.Max(recipe.FViews, 120);
+            recipe.FStatus = 1;
+            recipe.FUpdatedAt = DateTime.UtcNow;
+            await context.SaveChangesAsync(cancellationToken);
 
-            if (!await context.TRecipeSteps.AnyAsync(
-                    item => item.FRecipeId == recipe.FRecipeId,
-                    cancellationToken))
-            {
-                context.TRecipeSteps.AddRange(definition.Steps.Select((item, index) =>
-                    new TRecipeStep
-                    {
-                        FRecipeId = recipe.FRecipeId,
-                        FStepNumber = (short)(index + 1),
-                        FInstruction = item.Instruction,
-                        FImageUrl = definition.CoverImageUrl,
-                        FTimerSeconds = item.TimerSeconds
-                    }));
-            }
-
-            var existingTagIds = await context.TRecipeTagMappings
+            await context.TRecipeIngredients
                 .Where(item => item.FRecipeId == recipe.FRecipeId)
-                .Select(item => item.FTagId)
-                .ToListAsync(cancellationToken);
-            var missingTagIds = definition.Tags
-                .Select(tagName => tags[tagName].FTagId)
-                .Except(existingTagIds)
-                .ToArray();
+                .ExecuteDeleteAsync(cancellationToken);
+            await context.TRecipeSteps
+                .Where(item => item.FRecipeId == recipe.FRecipeId)
+                .ExecuteDeleteAsync(cancellationToken);
+            await context.TRecipeTagMappings
+                .Where(item => item.FRecipeId == recipe.FRecipeId)
+                .ExecuteDeleteAsync(cancellationToken);
 
-            context.TRecipeTagMappings.AddRange(missingTagIds.Select(tagId => new TRecipeTagMapping
+            context.TRecipeIngredients.AddRange(definition.Ingredients.Select((item, index) =>
+                new TRecipeIngredient
+                {
+                    FRecipeId = recipe.FRecipeId,
+                    FIngredientId = ingredients[item.Name].FId,
+                    FDisplayAmount = item.DisplayAmount,
+                    FBaseAmount = item.BaseAmount,
+                    FStandardUnit = item.Unit,
+                    FIsMain = item.IsMain,
+                    FSortOrder = (short)(index + 1)
+                }));
+
+            context.TRecipeSteps.AddRange(definition.Steps.Select((item, index) =>
+                new TRecipeStep
+                {
+                    FRecipeId = recipe.FRecipeId,
+                    FStepNumber = (short)(index + 1),
+                    FInstruction = item.Instruction,
+                    FImageUrl = definition.CoverImageUrl,
+                    FTimerSeconds = item.TimerSeconds
+                }));
+
+            context.TRecipeTagMappings.AddRange(definition.Tags.Select(tagName => new TRecipeTagMapping
             {
                 FRecipeId = recipe.FRecipeId,
-                FTagId = tagId
+                FTagId = tags[tagName].FTagId
             }));
 
             await context.SaveChangesAsync(cancellationToken);
@@ -333,16 +324,14 @@ public sealed class RecipeDevelopmentDataSeeder(
     }
 
     private static TUser CreateUser(
-        string userCode,
         string username,
         string email,
         string idNumber)
     {
         return new TUser
         {
-            FUsercode = userCode,
             FUsername = username,
-            FPassword = Encoding.UTF8.GetBytes("DemoOnly2026!"),
+            FPassword = "DemoOnly2026!",
             FEmail = email,
             FPhone = "0900000000",
             FIdNum = idNumber,

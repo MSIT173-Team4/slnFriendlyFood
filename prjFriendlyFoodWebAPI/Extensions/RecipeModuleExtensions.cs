@@ -1,4 +1,5 @@
 using prjFriendlyFoodWebAPI.Infrastructure.Seeding.Recipe;
+using prjFriendlyFoodWebAPI.ExternalServices.SmartBot;
 using prjFriendlyFoodWebAPI.Services.Recipe;
 
 namespace prjFriendlyFoodWebAPI.Extensions;
@@ -10,7 +11,16 @@ public static class RecipeModuleExtensions
         services.AddScoped<IRecipeService, RecipeService>();
         services.AddScoped<IRecipePantryService, RecipePantryService>();
         services.AddScoped<IRecipeEngagementService, RecipeEngagementService>();
+        services.AddScoped<IIngredientNameNormalizer, IngredientNameNormalizer>();
+        services.AddScoped<IPantryIntakeService, PantryIntakeService>();
         services.AddScoped<IRecipeDataSeeder, RecipeDevelopmentDataSeeder>();
+        services.AddHttpClient<IPantryAiClient, SmartBotPantryAiClient>((serviceProvider, client) =>
+        {
+            var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+            var baseUrl = configuration["SmartBot:BaseUrl"] ?? "https://localhost:7189/";
+            client.BaseAddress = new Uri(baseUrl);
+            client.Timeout = TimeSpan.FromSeconds(70);
+        });
 
         return services;
     }
