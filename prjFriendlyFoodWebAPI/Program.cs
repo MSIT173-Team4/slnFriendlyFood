@@ -1,6 +1,9 @@
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using prjFriendlyFoodWebAPI.Extensions;
 using prjFriendlyFoodWebAPI.Models;
+using prjFriendlyFoodWebAPI.Services.FoodMap;
+using prjFriendlyFoodWebAPI.Services.FoodMap.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,8 +18,16 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartHeadersLengthLimit = 10 * 1024 * 1024;
+    options.MultipartBodyLengthLimit = 50 * 1024 * 1024;
+    options.ValueLengthLimit = 10 * 1024 * 1024;
+});
+
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
+builder.Services.AddScoped<IFoodMapService, PlaceService>();
 builder.Services.AddDbContext<FriendlyFoodDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddRecipeModule();
@@ -33,6 +44,7 @@ if (app.Environment.IsDevelopment())
     }
 }
 
+app.UseStaticFiles();
 app.UseHttpsRedirection();
 app.UseCors("AllowAngularClient");
 app.UseAuthorization();
