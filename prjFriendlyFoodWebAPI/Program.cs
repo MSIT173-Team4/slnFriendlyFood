@@ -1,3 +1,6 @@
+using Microsoft.EntityFrameworkCore;
+using prjFriendlyFoodWebAPI.Models;
+
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using prjFriendlyFoodWebAPI.Models;
@@ -25,6 +28,8 @@ builder.Services.Configure<FormOptions>(options =>
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+builder.Services.AddDbContext<FriendlyFoodDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddDbContext<FriendlyFoodDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
