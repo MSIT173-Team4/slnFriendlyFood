@@ -365,5 +365,4 @@ FodyWeavers.xsd
 
 **/appsettings.Development.json
 */.env
-
 .env

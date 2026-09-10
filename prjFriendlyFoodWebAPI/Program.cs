@@ -1,38 +1,41 @@
 using Microsoft.EntityFrameworkCore;
+using prjFriendlyFoodWebAPI.Extensions;
 using prjFriendlyFoodWebAPI.Models;
 
 var builder = WebApplication.CreateBuilder(args);
-//CORS 跨來源資源共用
+
 builder.Services.AddCors(options =>
 {
-options.AddPolicy("AllowAngularClient", policy =>
-{
-policy.WithOrigins("http://localhost:4200")
-    .AllowAnyHeader()
-    .AllowAnyMethod();
+    options.AddPolicy("AllowAngularClient", policy =>
+    {
+        policy
+            .WithOrigins("http://localhost:4200", "http://127.0.0.1:4200")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
 });
-});
-// Add services to the container.
 
 builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 builder.Services.AddDbContext<FriendlyFoodDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddRecipeModule();
+
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+
+    if (app.Configuration.GetValue<bool>("DataSeeding:SeedRecipeDemoData"))
+    {
+        await app.SeedRecipeDevelopmentDataAsync();
+    }
 }
 
 app.UseHttpsRedirection();
-//CORS中介 放置在 UseHttpsRedirection 之後、UseAuthorization 之前
 app.UseCors("AllowAngularClient");
-
 app.UseAuthorization();
-
 app.MapControllers();
 
 app.Run();
