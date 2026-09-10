@@ -1,9 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using prjFriendlyFoodWebAPI.DTOs.FoodMap;
 using prjFriendlyFoodWebAPI.Models;
-using prjFriendlyFoodWebAPI.Services.Interfaces;
+using prjFriendlyFoodWebAPI.Services.FoodMap.Interfaces;
 
-namespace prjFriendlyFoodWebAPI.Services
+namespace prjFriendlyFoodWebAPI.Services.FoodMap
 {
     public class PlaceService : IFoodMapService
     {
@@ -52,7 +52,7 @@ namespace prjFriendlyFoodWebAPI.Services
                 .FirstOrDefaultAsync();
         }
 
-        public async Task<List<PlaceDTO>> GetNearbyPlacesAsync(NearbyPlacesDTO request)
+        public async Task<List<PlaceDTO>> GetNearbyPlacesAsync(PlacesDTO request)
         {
             // Step 1：算出 Bounding Box 邊界（粗篩，SQL 端執行）
             var latDelta = request.Radius / 111m; // 緯度 1 度約等於 111 公里
@@ -125,7 +125,7 @@ namespace prjFriendlyFoodWebAPI.Services
 
             foreach (var radius in searchRadiusSteps)
             {
-                result = await GetNearbyPlacesAsync(new NearbyPlacesDTO
+                result = await GetNearbyPlacesAsync(new PlacesDTO
                 {
                     Latitude = latitude,
                     Longitude = longitude,

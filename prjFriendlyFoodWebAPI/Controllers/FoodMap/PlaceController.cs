@@ -1,9 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using prjFriendlyFoodWebAPI.DTOs.FoodMap;
 using prjFriendlyFoodWebAPI.Services;
-using prjFriendlyFoodWebAPI.Services.Interfaces;
+using prjFriendlyFoodWebAPI.Services.FoodMap.Interfaces;
 
-namespace prjFriendlyFoodWebAPI.Controllers
+namespace prjFriendlyFoodWebAPI.Controllers.FoodMap
 {
     [ApiController]
     [Route("api/[controller]")]
@@ -11,7 +11,7 @@ namespace prjFriendlyFoodWebAPI.Controllers
     {
         private readonly IFoodMapService _placeService;
 
-        
+
         public PlaceController(IFoodMapService placeService)
         {
             _placeService = placeService;
@@ -35,17 +35,26 @@ namespace prjFriendlyFoodWebAPI.Controllers
             return Ok(place);
         }
         [HttpGet("nearby")]
-        public async Task<ActionResult<NearbyPlacesDTO>> GetNearbyPlaces(
+        public async Task<ActionResult<List<PlaceDTO>>> GetNearbyPlaces(
             [FromQuery] decimal latitude,
             [FromQuery] decimal longitude,
-            [FromQuery] decimal radiuskm)
+            [FromQuery] decimal radius)
         {
-            var nearbyPlaces = await _placeService.GetNearbyPlacesAsync(new NearbyPlacesDTO
+            var nearbyPlaces = await _placeService.GetNearbyPlacesAsync(new PlacesDTO
             {
                 Latitude = latitude,
                 Longitude = longitude,
-                Radius = radiuskm
+                Radius = radius
             });
+            return Ok(nearbyPlaces);
+        }
+        [HttpGet("nearby/fallback")]
+        public async Task<ActionResult<List<PlaceDTO>>> GetNearbyPlacesWithFallback(
+            [FromQuery] decimal latitude,
+            [FromQuery] decimal longitude)
+        {
+            var nearbyPlaces = await _placeService.GetNearbyPlacesWithFallbackAsync(latitude, longitude);
+
             return Ok(nearbyPlaces);
         }
     }

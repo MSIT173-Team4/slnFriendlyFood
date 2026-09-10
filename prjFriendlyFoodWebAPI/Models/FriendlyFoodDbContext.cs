@@ -1544,10 +1544,7 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasMaxLength(10)
                 .IsUnicode(false)
                 .HasColumnName("fPhone");
-            entity.Property(e => e.FUsercode)
-                .HasMaxLength(32)
-                .IsUnicode(false)
-                .HasColumnName("fUsercode");
+           
             entity.Property(e => e.FUsername)
                 .HasMaxLength(16)
                 .IsUnicode(false)
