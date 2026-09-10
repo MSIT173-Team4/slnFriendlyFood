@@ -29,12 +29,12 @@ public partial class TMarketCoupon
     public string? FCode { get; set; }
 
     /// <summary>
-    /// 適用範圍
+    /// 適用範圍 (Shipping: 運費券 / Platform: 全站券 / Store: 賣場券)
     /// </summary>
     public string FScopeType { get; set; } = null!;
 
     /// <summary>
-    /// 折抵類型
+    /// 折抵類型 (Fixed: 固定金額 / Percentage: 比例折扣)
     /// </summary>
     public string FDiscountType { get; set; } = null!;
 

@@ -18,4 +18,10 @@ public partial class TRecipeUserPantry
     public DateOnly FExpirationDate { get; set; }
 
     public DateTime FCreatedAt { get; set; }
+
+    public string FStorageLocation { get; set; }
+
+    public string FNote { get; set; }
+
+    public virtual TUser FUser { get; set; }
 }

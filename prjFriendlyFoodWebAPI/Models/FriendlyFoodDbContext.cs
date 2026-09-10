@@ -113,6 +113,8 @@ public partial class FriendlyFoodDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.UseCollation("Chinese_Taiwan_Stroke_CI_AS");
+
         modelBuilder.Entity<TApply>(entity =>
         {
             entity.HasKey(e => e.FId).HasName("PK__tApply__D9F8227CFD72D344");
@@ -679,6 +681,7 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasComment("商店端唯一,對應綠界MerchantTradeNo")
                 .HasColumnName("fBatchNo");
             entity.Property(e => e.FCreatedDate)
+                .HasDefaultValueSql("(sysdatetime())")
                 .HasComment("建立日期")
                 .HasColumnName("fCreatedDate");
             entity.Property(e => e.FPaidAt)
@@ -731,7 +734,7 @@ public partial class FriendlyFoodDbContext : DbContext
             entity.Property(e => e.FDiscountType)
                 .HasMaxLength(20)
                 .IsUnicode(false)
-                .HasComment("折抵類型")
+                .HasComment("折抵類型 (Fixed: 固定金額 / Percentage: 比例折扣)")
                 .HasColumnName("fDiscountType");
             entity.Property(e => e.FDiscountValue)
                 .HasComment("比例折抵值")
@@ -758,7 +761,7 @@ public partial class FriendlyFoodDbContext : DbContext
             entity.Property(e => e.FScopeType)
                 .HasMaxLength(20)
                 .IsUnicode(false)
-                .HasComment("適用範圍")
+                .HasComment("適用範圍 (Shipping: 運費券 / Platform: 全站券 / Store: 賣場券)")
                 .HasColumnName("fScopeType");
             entity.Property(e => e.FSellerId)
                 .HasComment("商家編號")
@@ -799,6 +802,7 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasComment("賣家是否已確認/列印出貨單；0 未確認 1 已確認/已列印")
                 .HasColumnName("fIsShippingConfirmed");
             entity.Property(e => e.FOrderDate)
+                .HasDefaultValueSql("(sysdatetime())")
                 .HasComment("訂單日期")
                 .HasColumnName("fOrderDate");
             entity.Property(e => e.FOrderNo)
@@ -911,7 +915,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TMarketOrderDiscount>(entity =>
         {
-            entity.HasKey(e => e.FOrderDiscountId).HasName("PK_tMarketOrderDiscounts");
+            entity.HasKey(e => e.FOrderDiscountId);
 
             entity.ToTable("tMarketOrderDiscount", tb => tb.HasComment("訂單折扣快照(結帳當下優惠券套用紀錄)"));
 
@@ -1031,7 +1035,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TMarketProductCategory>(entity =>
         {
-            entity.HasKey(e => e.FCategoryId).HasName("PK_tMarketProductsCategory");
+            entity.HasKey(e => e.FCategoryId);
 
             entity.ToTable("tMarketProductCategory", tb => tb.HasComment("商品分類(自我參照,支援多層)"));
 
@@ -1060,7 +1064,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TMarketProductFavorite>(entity =>
         {
-            entity.HasKey(e => e.FFavoriteId).HasName("PK_tMarketFavorites");
+            entity.HasKey(e => e.FFavoriteId);
 
             entity.ToTable("tMarketProductFavorite", tb => tb.HasComment("商品收藏"));
 
@@ -1070,7 +1074,7 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasComment("收藏ID")
                 .HasColumnName("fFavoriteID");
             entity.Property(e => e.FCreatedDate)
-                .HasDefaultValueSql("(getdate())")
+                .HasDefaultValueSql("(sysdatetime())")
                 .HasComment("加入時間")
                 .HasColumnName("fCreatedDate");
             entity.Property(e => e.FProductId)
@@ -1101,6 +1105,7 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasComment("圖片ID")
                 .HasColumnName("fProductImageID");
             entity.Property(e => e.FCreatedDate)
+                .HasDefaultValueSql("(sysdatetime())")
                 .HasComment("建立日期")
                 .HasColumnName("fCreatedDate");
             entity.Property(e => e.FImageUrl)
@@ -1122,7 +1127,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TMarketProductReview>(entity =>
         {
-            entity.HasKey(e => e.FReviewId).HasName("PK_tMarketProductReviews");
+            entity.HasKey(e => e.FReviewId);
 
             entity.ToTable("tMarketProductReview", tb => tb.HasComment("商品評論"));
 
@@ -1135,7 +1140,7 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasComment("評論內容")
                 .HasColumnName("fComment");
             entity.Property(e => e.FCreatedDate)
-                .HasDefaultValueSql("(getdate())")
+                .HasDefaultValueSql("(sysdatetime())")
                 .HasComment("評論時間")
                 .HasColumnName("fCreatedDate");
             entity.Property(e => e.FOrderDetailsId)
@@ -1169,7 +1174,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TMarketShoppingCart>(entity =>
         {
-            entity.HasKey(e => e.FCartItemId).HasName("PK_tMarketShoppingCarts");
+            entity.HasKey(e => e.FCartItemId);
 
             entity.ToTable("tMarketShoppingCart", tb => tb.HasComment("購物車"));
 
@@ -1427,6 +1432,14 @@ public partial class FriendlyFoodDbContext : DbContext
             entity.Property(e => e.FCreatedAt).HasColumnName("fCreatedAt");
             entity.Property(e => e.FExpirationDate).HasColumnName("fExpirationDate");
             entity.Property(e => e.FIngredientId).HasColumnName("fIngredientId");
+            entity.Property(e => e.FNote)
+                .HasMaxLength(150)
+                .HasColumnName("fNote");
+            entity.Property(e => e.FStorageLocation)
+                .IsRequired()
+                .HasMaxLength(20)
+                .HasDefaultValue("冷藏", "DF_Pantry_Storage")
+                .HasColumnName("fStorageLocation");
             entity.Property(e => e.FUnit)
                 .HasMaxLength(20)
                 .HasColumnName("fUnit");

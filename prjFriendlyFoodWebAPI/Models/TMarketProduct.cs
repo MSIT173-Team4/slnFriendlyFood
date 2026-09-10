@@ -61,7 +61,7 @@ public partial class TMarketProduct
     /// <summary>
     /// 生產日期
     /// </summary>
-    public DateOnly FManufacturingDate { get; set; }
+    public DateOnly? FManufacturingDate { get; set; }
 
     /// <summary>
     /// 有效期限
