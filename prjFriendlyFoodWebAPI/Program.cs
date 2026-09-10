@@ -43,7 +43,7 @@ app.UseCors("AllowAngular");
 
 app.UseHttpsRedirection();
 
-app.UseCors("AllowAngular");
+app.UseStaticFiles();
 
 app.UseAuthorization();
 

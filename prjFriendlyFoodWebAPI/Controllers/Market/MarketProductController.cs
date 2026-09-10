@@ -14,6 +14,9 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         private readonly FriendlyFoodDbContext _context;
         private readonly IWebHostEnvironment _env;
 
+        //連線字串的變數，demo時要改成demo主機的位置
+        private const string ImageBaseUrl = "https://localhost:7164";
+
         // 注入 IWebHostEnvironment 才能拿到 wwwroot 的實際路徑
         public MarketProductController(FriendlyFoodDbContext context, IWebHostEnvironment env)
         {
@@ -41,9 +44,9 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                     ExpirationDate = p.FExpirationDate,
                     ProductStatus = p.FProductStatus,
                     ImageUrls = p.TMarketProductImages
-                                 .OrderBy(img => img.FSortOrder)
-                                 .Select(img => img.FImageUrl)
-                                 .ToList()
+             .OrderBy(img => img.FSortOrder)
+             .Select(img => ImageBaseUrl + img.FImageUrl)
+             .ToList()
                 })
                 .ToListAsync();
 
@@ -78,9 +81,9 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                     ExpirationDate = p.FExpirationDate,
                     ProductStatus = p.FProductStatus,
                     ImageUrls = p.TMarketProductImages
-                                 .OrderBy(img => img.FSortOrder)
-                                 .Select(img => img.FImageUrl)
-                                 .ToList()
+             .OrderBy(img => img.FSortOrder)
+             .Select(img => ImageBaseUrl + img.FImageUrl)
+             .ToList()
                 })
                 .ToListAsync();
 
@@ -168,6 +171,66 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
             }
 
             return Ok(new { product.FProductId });
+        }
+
+        //消費者端搜尋商品
+        // GET /api/MarketProduct/search?keyword=糯米&categoryNo=F01&minPrice=50&maxPrice=200&sortBy=price_asc&page=1
+        [HttpGet("search")]
+        public async Task<IActionResult> SearchProducts([FromQuery] DTOMarketProductSearch dto)
+        {
+            // 基礎條件：只拿架上商品
+            var query = _context.TMarketProducts
+                .Where(p => p.FProductStatus == 1)
+                .AsQueryable();
+
+            // 關鍵字篩選：商品名稱包含關鍵字
+            if (!string.IsNullOrEmpty(dto.Keyword))
+                query = query.Where(p => p.FProductname.Contains(dto.Keyword));
+
+            // 分類篩選
+            if (!string.IsNullOrEmpty(dto.CategoryNo))
+                query = query.Where(p => p.FProductsCategoryNo == dto.CategoryNo);
+
+            // 最低價格
+            if (dto.MinPrice.HasValue)
+                query = query.Where(p => p.FPrice >= dto.MinPrice.Value);
+
+            // 最高價格
+            if (dto.MaxPrice.HasValue)
+                query = query.Where(p => p.FPrice <= dto.MaxPrice.Value);
+
+            // 排序
+            query = dto.SortBy switch
+            {
+                "price_asc" => query.OrderBy(p => p.FPrice),
+                "price_desc" => query.OrderByDescending(p => p.FPrice),
+                "newest" => query.OrderByDescending(p => p.FProductId),
+                _ => query.OrderByDescending(p => p.FProductId) // 預設最新
+            };
+
+            // 分頁 + mapping 到 DTO
+            var products = await query
+                .Skip((dto.Page - 1) * 10)
+                .Take(10)
+                .Select(p => new DTOMarketPublicProductList
+                {
+                    ProductId = p.FProductId,
+                    ProductName = p.FProductname,
+                    Description = p.FDescription,
+                    Stock = p.FStock,
+                    Price = p.FPrice,
+                    BrandOrOrigin = p.FBrandOrOrigin,
+                    ManufacturingDate = p.FManufacturingDate,
+                    ExpirationDate = p.FExpirationDate,
+                    ProductStatus = p.FProductStatus,
+                    ImageUrls = p.TMarketProductImages
+                                 .OrderBy(img => img.FSortOrder)
+                                 .Select(img => ImageBaseUrl + img.FImageUrl)
+                                 .ToList()
+                })
+                .ToListAsync();
+
+            return Ok(products);
         }
     }
 }
