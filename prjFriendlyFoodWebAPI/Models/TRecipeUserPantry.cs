@@ -19,9 +19,9 @@ public partial class TRecipeUserPantry
 
     public DateTime FCreatedAt { get; set; }
 
-    public string FStorageLocation { get; set; }
+    public string FStorageLocation { get; set; } = null!;
 
-    public string FNote { get; set; }
+    public string? FNote { get; set; }
 
-    public virtual TUser FUser { get; set; }
+    public virtual TUser FUser { get; set; } = null!;
 }
