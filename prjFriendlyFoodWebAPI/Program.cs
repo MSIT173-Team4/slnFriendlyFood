@@ -28,6 +28,7 @@ builder.Services.Configure<FormOptions>(options =>
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<IFoodMapService, PlaceService>();
+builder.Services.AddScoped<ITripServices, TripServices>();
 builder.Services.AddDbContext<FriendlyFoodDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddRecipeModule();
