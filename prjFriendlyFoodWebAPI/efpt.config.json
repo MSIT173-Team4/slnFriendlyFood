@@ -1,234 +1,184 @@
 ﻿{
-   "CodeGenerationMode": 6,
-   "ContextClassName": "FriendlyFoodDbContext",
-   "ContextNamespace": null,
-   "FilterSchemas": false,
-   "IncludeConnectionString": false,
-   "IrregularWords": null,
-   "MinimumProductVersion": "2.6.1604",
-   "ModelNamespace": null,
-   "OutputContextPath": null,
-   "OutputPath": "Models",
-   "PluralRules": null,
-   "PreserveCasingWithRegex": true,
-   "ProjectRootNamespace": "prjFriendlyFoodWebAPI",
-   "Schemas": null,
-   "SelectedHandlebarsLanguage": 2,
-   "SelectedToBeGenerated": 0,
-   "SingularRules": null,
-   "T4TemplatePath": null,
-   "Tables": [
-      {
-         "Name": "[dbo].[tApply]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tApplyStatus]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tAttachmentTable]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tConversationMember]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tConversationMessagesTable]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tConversationsTable]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tFoodMapFavorite]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tFoodMapIngredientCategory]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tFoodMapIngredientPlaceCategory]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tFoodMapPlace]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tFoodMapPlaceCategory]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tFoodMapPlaceImage]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tFoodMapRecommendationCampaign]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tFoodMapRecommendationPlace]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tFoodMapShoppingList]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tFoodMapShoppingListItem]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tFoodMapTrip]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tFoodMapTripPlace]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tFoodMapTripRoute]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tIngredient]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tMarketCheckoutBatch]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tMarketCoupon]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tMarketOrder]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tMarketOrderDetail]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tMarketOrderDiscount]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tMarketProduct]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tMarketProductCategory]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tMarketProductFavorite]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tMarketProductImage]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tMarketProductReview]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tMarketShoppingCart]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tMessageTable]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tPostTable]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tRecipe]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tRecipeCategory]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tRecipeFavorite]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tRecipeIngredient]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tRecipeLike]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tRecipeStep]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tRecipeTag]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tRecipeTagMapping]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tRecipeUserPantry]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tSeller]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tSortTable]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tStatus]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[tUser]",
-         "ObjectType": 0
-      }
-   ],
-   "UiHint": null,
-   "UncountableWords": null,
-   "UseAsyncStoredProcedureCalls": true,
-   "UseBoolPropertiesWithoutDefaultSql": false,
-   "UseDatabaseNames": false,
-   "UseDatabaseNamesForRoutines": true,
-   "UseDateOnlyTimeOnly": true,
-   "UseDbContextSplitting": false,
-   "UseDecimalDataAnnotationForSprocResult": true,
-   "UseFluentApiOnly": true,
-   "UseHandleBars": false,
-   "UseHierarchyId": false,
-   "UseInflector": true,
-   "UseInternalAccessModifiersForSprocsAndFunctions": false,
-   "UseLegacyPluralizer": false,
-   "UseManyToManyEntity": false,
-   "UseNoDefaultConstructor": false,
-   "UseNoNavigations": false,
-   "UseNoObjectFilter": false,
-   "UseNodaTime": false,
-   "UseNullableReferences": false,
-   "UsePrefixNavigationNaming": false,
-   "UseSchemaFolders": false,
-   "UseSchemaNamespaces": false,
-   "UseSpatial": false,
-   "UseT4": false,
-   "UseT4Split": false,
-   "UseTypedTvpParameters": true
+  "$schema": "https://raw.githubusercontent.com/ErikEJ/EFCorePowerTools/master/samples/efcpt-config.schema.json",
+  "code-generation": {
+    "enable-on-configuring": false,
+    "generate-mermaid-diagram": false,
+    "merge-dacpacs": false,
+    "refresh-object-lists": true,
+    "remove-defaultsql-from-bool-properties": false,
+    "soft-delete-obsolete-files": true,
+    "t4-template-path": null,
+    "type": "all",
+    "use-alternate-stored-procedure-resultset-discovery": false,
+    "use-stored-procedure-resultset-fallback": true,
+    "use-data-annotations": false,
+    "use-database-names": false,
+    "use-database-names-for-routines": true,
+    "use-decimal-data-annotation-for-sproc-results": true,
+    "use-inflector": true,
+    "use-internal-access-modifiers-for-sprocs-and-functions": false,
+    "use-legacy-inflector": false,
+    "use-many-to-many-entity": false,
+    "use-nullable-reference-types": true,
+    "use-prefix-navigation-naming": false,
+    "use-typed-tvp-parameters": true,
+    "use-t4": false,
+    "use-t4-split": false
+  },
+  "file-layout": {
+    "output-dbcontext-path": null,
+    "output-path": "Models"
+  },
+  "names": {
+    "dbcontext-name": "FriendlyFoodDbContext",
+    "dbcontext-namespace": "Models",
+    "model-namespace": "Models",
+    "root-namespace": "prjFriendlyFoodWebAPI"
+  },
+  "tables": [
+    {
+      "name": "[dbo].[tApply]"
+    },
+    {
+      "name": "[dbo].[tApplyStatus]"
+    },
+    {
+      "name": "[dbo].[tAttachmentTable]"
+    },
+    {
+      "name": "[dbo].[tConversationMember]"
+    },
+    {
+      "name": "[dbo].[tConversationMessagesTable]"
+    },
+    {
+      "name": "[dbo].[tConversationsTable]"
+    },
+    {
+      "name": "[dbo].[tFoodMapFavorite]"
+    },
+    {
+      "name": "[dbo].[tFoodMapIngredientCategory]"
+    },
+    {
+      "name": "[dbo].[tFoodMapIngredientPlaceCategory]"
+    },
+    {
+      "name": "[dbo].[tFoodMapPlace]"
+    },
+    {
+      "name": "[dbo].[tFoodMapPlaceCategory]"
+    },
+    {
+      "name": "[dbo].[tFoodMapPlaceImage]"
+    },
+    {
+      "name": "[dbo].[tFoodMapRecommendationCampaign]"
+    },
+    {
+      "name": "[dbo].[tFoodMapRecommendationPlace]"
+    },
+    {
+      "name": "[dbo].[tFoodMapShoppingList]"
+    },
+    {
+      "name": "[dbo].[tFoodMapShoppingListItem]"
+    },
+    {
+      "name": "[dbo].[tFoodMapTrip]"
+    },
+    {
+      "name": "[dbo].[tFoodMapTripPlace]"
+    },
+    {
+      "name": "[dbo].[tFoodMapTripRoute]"
+    },
+    {
+      "name": "[dbo].[tIngredient]"
+    },
+    {
+      "name": "[dbo].[tMarketCheckoutBatch]"
+    },
+    {
+      "name": "[dbo].[tMarketCoupon]"
+    },
+    {
+      "name": "[dbo].[tMarketOrder]"
+    },
+    {
+      "name": "[dbo].[tMarketOrderDetail]"
+    },
+    {
+      "name": "[dbo].[tMarketOrderDiscount]"
+    },
+    {
+      "name": "[dbo].[tMarketProduct]"
+    },
+    {
+      "name": "[dbo].[tMarketProductCategory]"
+    },
+    {
+      "name": "[dbo].[tMarketProductFavorite]"
+    },
+    {
+      "name": "[dbo].[tMarketProductImage]"
+    },
+    {
+      "name": "[dbo].[tMarketProductReview]"
+    },
+    {
+      "name": "[dbo].[tMarketShoppingCart]"
+    },
+    {
+      "name": "[dbo].[tMessageTable]"
+    },
+    {
+      "name": "[dbo].[tPostTable]"
+    },
+    {
+      "name": "[dbo].[tRecipe]"
+    },
+    {
+      "name": "[dbo].[tRecipeCategory]"
+    },
+    {
+      "name": "[dbo].[tRecipeFavorite]"
+    },
+    {
+      "name": "[dbo].[tRecipeIngredient]"
+    },
+    {
+      "name": "[dbo].[tRecipeLike]"
+    },
+    {
+      "name": "[dbo].[tRecipeStep]"
+    },
+    {
+      "name": "[dbo].[tRecipeTag]"
+    },
+    {
+      "name": "[dbo].[tRecipeTagMapping]"
+    },
+    {
+      "name": "[dbo].[tRecipeUserPantry]"
+    },
+    {
+      "name": "[dbo].[tSeller]"
+    },
+    {
+      "name": "[dbo].[tSortTable]"
+    },
+    {
+      "name": "[dbo].[tStatus]"
+    },
+    {
+      "name": "[dbo].[tUser]"
+    }
+  ],
+  "type-mappings": {
+    "use-DateOnly-TimeOnly": true,
+    "use-HierarchyId": false,
+    "use-NodaTime": false,
+    "use-spatial": false
+  }
 }

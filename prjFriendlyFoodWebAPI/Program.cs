@@ -1,19 +1,20 @@
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
+using prjFriendlyFoodWebAPI.Extensions;
 using prjFriendlyFoodWebAPI.Models;
 using prjFriendlyFoodWebAPI.Services.FoodMap;
 using prjFriendlyFoodWebAPI.Services.FoodMap.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAngular", policy =>
+    options.AddPolicy("AllowAngularClient", policy =>
     {
-        policy.WithOrigins("http://localhost:4200")
-              .AllowAnyHeader()
-              .AllowAnyMethod();
+        policy
+            .WithOrigins("http://localhost:4200", "http://127.0.0.1:4200")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
     });
 });
 
@@ -25,28 +26,29 @@ builder.Services.Configure<FormOptions>(options =>
 });
 
 builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<IFoodMapService, PlaceService>();
 builder.Services.AddDbContext<FriendlyFoodDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddRecipeModule();
+
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+
+    if (app.Configuration.GetValue<bool>("DataSeeding:SeedRecipeDemoData"))
+    {
+        await app.SeedRecipeDevelopmentDataAsync();
+    }
 }
 
 
-app.UseCors("AllowAngular");
-
+app.UseStaticFiles();
 app.UseHttpsRedirection();
-
-app.UseCors("AllowAngular");
-
+app.UseCors("AllowAngularClient");
 app.UseAuthorization();
-
 app.MapControllers();
 
 app.Run();
