@@ -27,7 +27,7 @@ namespace prjFriendlyFoodWebAPI.Services.FoodMap
                     FPhone = r.FPhone,
                     FGoogleRating = r.FGoogleRating,
                     FGoogleReviewCount = r.FGoogleReviewCount,
-                    FIsRecommend = r.FIsRecommend
+                    FIsRecommend = r.TFoodMapRecommendationPlaces.Any(item => item.FIsRecommend)
                 })
                 .ToListAsync();
         }
@@ -47,7 +47,7 @@ namespace prjFriendlyFoodWebAPI.Services.FoodMap
                     FPhone = r.FPhone,
                     FGoogleRating = r.FGoogleRating,
                     FGoogleReviewCount = r.FGoogleReviewCount,
-                    FIsRecommend = r.FIsRecommend
+                    FIsRecommend = r.TFoodMapRecommendationPlaces.Any(item => item.FIsRecommend)
                 })
                 .FirstOrDefaultAsync();
         }
@@ -68,6 +68,7 @@ namespace prjFriendlyFoodWebAPI.Services.FoodMap
                 .Where(r =>
                     r.FLatitude >= minLat && r.FLatitude <= maxLat &&
                     r.FLongitude >= minLng && r.FLongitude <= maxLng)
+                .Include(place => place.TFoodMapRecommendationPlaces)
                 .ToListAsync();
 
             // Step 2：精確計算距離（記憶體端執行，資料量已經很小）
@@ -91,7 +92,7 @@ namespace prjFriendlyFoodWebAPI.Services.FoodMap
                     FPhone = x.Place.FPhone,
                     FGoogleRating = x.Place.FGoogleRating,
                     FGoogleReviewCount = x.Place.FGoogleReviewCount,
-                    FIsRecommend = x.Place.FIsRecommend
+                    FIsRecommend = x.Place.TFoodMapRecommendationPlaces.Any(item => item.FIsRecommend)
                 })
                 .ToList();
             return result;
