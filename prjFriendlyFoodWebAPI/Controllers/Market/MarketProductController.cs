@@ -185,7 +185,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
 
             // 關鍵字篩選：商品名稱包含關鍵字
             if (!string.IsNullOrEmpty(dto.Keyword))
-                query = query.Where(p => p.FProductname.Contains(dto.Keyword));
+                query = query.Where(p => p.FProductName.Contains(dto.Keyword));
 
             // 分類篩選
             if (!string.IsNullOrEmpty(dto.CategoryNo))
@@ -215,7 +215,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                 .Select(p => new DTOMarketPublicProductList
                 {
                     ProductId = p.FProductId,
-                    ProductName = p.FProductname,
+                    ProductName = p.FProductName,
                     Description = p.FDescription,
                     Stock = p.FStock,
                     Price = p.FPrice,
