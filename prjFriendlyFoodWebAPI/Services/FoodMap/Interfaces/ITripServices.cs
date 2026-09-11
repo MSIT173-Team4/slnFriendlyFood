@@ -6,7 +6,7 @@ namespace prjFriendlyFoodWebAPI.Services.FoodMap.Interfaces
     {
         Task<List<TripDTO>> GetTripsAsync();
 
-        Task<TripDTO?> GetTripByIdAsync(int tripId);
+        Task<TripDTO?> GetTripByIdAsync(long tripId);
 
         Task<TripDTO> CreatTripAsync(TripDTO tripDTO);
     }

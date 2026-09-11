@@ -11,6 +11,6 @@
         public decimal Flongitude { get; set; }
 
         public int FSortOrder { get; set; }
-
+        public int FPlaceId { get; internal set; }
     }
 }

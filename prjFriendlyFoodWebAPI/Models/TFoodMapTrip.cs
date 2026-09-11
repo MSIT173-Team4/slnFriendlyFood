@@ -7,6 +7,8 @@ namespace prjFriendlyFoodWebAPI.Models;
 
 public partial class TFoodMapTrip
 {
+    internal readonly string FName;
+
     public int FTripId { get; set; }
 
     public int FUserId { get; set; }
