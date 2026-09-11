@@ -1,3 +1,4 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using prjFriendlyFoodWebAPI.DTOs.Recipe.Requests;
 using prjFriendlyFoodWebAPI.DTOs.Recipe.Responses;
@@ -8,7 +9,8 @@ namespace prjFriendlyFoodWebAPI.Services.Recipe;
 
 public sealed class RecipeService(
     FriendlyFoodDbContext context,
-    ILogger<RecipeService> logger) : IRecipeService
+    ILogger<RecipeService> logger,
+    IIngredientNameNormalizer ingredientNameNormalizer) : IRecipeService
 {
     public async Task<ServiceResult<IReadOnlyCollection<RecipeSummaryDto>>> GetRecipesAsync(
         string? search,
@@ -259,51 +261,63 @@ public sealed class RecipeService(
         CompleteCookingRequestDto request,
         CancellationToken cancellationToken)
     {
-        var recipe = await context.TRecipes
-            .FirstOrDefaultAsync(
-                item => item.FRecipeId == request.RecipeId && item.FStatus == 1,
-                cancellationToken);
-
-        if (recipe is null)
-        {
-            return ServiceResult<IReadOnlyCollection<CookingDeductionResultDto>>.NotFound("找不到該食譜資料。");
-        }
-
-        var ingredients = await (
-            from recipeIngredient in context.TRecipeIngredients.AsNoTracking()
-            join ingredient in context.TIngredients.AsNoTracking()
-                on recipeIngredient.FIngredientId equals ingredient.FId
-            where recipeIngredient.FRecipeId == request.RecipeId &&
-                  recipeIngredient.FBaseAmount.HasValue
-            orderby recipeIngredient.FSortOrder
-            select new
-            {
-                recipeIngredient.FIngredientId,
-                ingredient.FName,
-                BaseAmount = recipeIngredient.FBaseAmount!.Value,
-                recipeIngredient.FStandardUnit
-            }).ToListAsync(cancellationToken);
-
-        if (ingredients.Count == 0)
-        {
-            return ServiceResult<IReadOnlyCollection<CookingDeductionResultDto>>.Validation(
-                "該食譜未設定可扣減的標準用量。");
-        }
-
-        var ingredientIds = ingredients.Select(item => item.FIngredientId).ToArray();
-        var pantryLots = await context.TRecipeUserPantries
-            .Where(item => item.FUserId == request.UserId && ingredientIds.Contains(item.FIngredientId))
-            .OrderBy(item => item.FExpirationDate)
-            .ToListAsync(cancellationToken);
-
-        var scaleRatio = (decimal)request.TargetServings /
-                         Math.Max(recipe.FDefaultServings, 1);
-        var deductions = new List<CookingDeductionResultDto>();
-
-        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = await context.Database.BeginTransactionAsync(
+            IsolationLevel.Serializable,
+            cancellationToken);
 
         try
         {
+            if (!await context.TUsers.AnyAsync(
+                    user => user.FId == request.UserId,
+                    cancellationToken))
+            {
+                return ServiceResult<IReadOnlyCollection<CookingDeductionResultDto>>.NotFound(
+                    "找不到指定的會員。");
+            }
+
+            var recipe = await context.TRecipes
+                .FirstOrDefaultAsync(
+                    item => item.FRecipeId == request.RecipeId && item.FStatus == 1,
+                    cancellationToken);
+
+            if (recipe is null)
+            {
+                return ServiceResult<IReadOnlyCollection<CookingDeductionResultDto>>.NotFound(
+                    "找不到該食譜資料。");
+            }
+
+            var ingredients = await (
+                from recipeIngredient in context.TRecipeIngredients.AsNoTracking()
+                join ingredient in context.TIngredients.AsNoTracking()
+                    on recipeIngredient.FIngredientId equals ingredient.FId
+                where recipeIngredient.FRecipeId == request.RecipeId &&
+                      recipeIngredient.FBaseAmount.HasValue
+                orderby recipeIngredient.FSortOrder
+                select new
+                {
+                    recipeIngredient.FIngredientId,
+                    ingredient.FName,
+                    BaseAmount = recipeIngredient.FBaseAmount!.Value,
+                    recipeIngredient.FStandardUnit
+                }).ToListAsync(cancellationToken);
+
+            if (ingredients.Count == 0)
+            {
+                return ServiceResult<IReadOnlyCollection<CookingDeductionResultDto>>.Validation(
+                    "該食譜未設定可扣減的標準用量。");
+            }
+
+            var ingredientIds = ingredients.Select(item => item.FIngredientId).ToArray();
+            var pantryLots = await context.TRecipeUserPantries
+                .Where(item => item.FUserId == request.UserId && ingredientIds.Contains(item.FIngredientId))
+                .OrderBy(item => item.FExpirationDate)
+                .ThenBy(item => item.FPantryId)
+                .ToListAsync(cancellationToken);
+
+            var scaleRatio = (decimal)request.TargetServings /
+                             Math.Max(recipe.FDefaultServings, 1);
+            var deductions = new List<CookingDeductionResultDto>();
+
             foreach (var ingredient in ingredients)
             {
                 var requiredAmount = ingredient.BaseAmount * scaleRatio;
@@ -352,9 +366,14 @@ public sealed class RecipeService(
                 deductions,
                 "料理完成，冰箱庫存已依到期日順序扣減。");
         }
-        catch (DbUpdateException exception)
+        catch (OperationCanceledException)
         {
-            await transaction.RollbackAsync(cancellationToken);
+            await transaction.RollbackAsync(CancellationToken.None);
+            throw;
+        }
+        catch (Exception exception)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
             logger.LogError(exception, "料理完成結算失敗，交易已復原。");
             return ServiceResult<IReadOnlyCollection<CookingDeductionResultDto>>.Unexpected(
                 "庫存扣減失敗，交易已完整復原。");
@@ -427,7 +446,7 @@ public sealed class RecipeService(
         context.TRecipeTagMappings.RemoveRange(oldMappings);
 
         var normalizedNames = ingredientInputs
-            .Select(item => item.Name.Trim())
+            .Select(item => ingredientNameNormalizer.Normalize(item.Name))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
         var knownIngredients = await context.TIngredients
@@ -438,15 +457,16 @@ public sealed class RecipeService(
         foreach (var input in ingredientInputs.OrderBy(item => item.SortOrder))
         {
             TIngredient? ingredient = null;
+            var standardName = ingredientNameNormalizer.Normalize(input.Name);
 
             if (input.IngredientId.HasValue)
             {
                 ingredient = await context.TIngredients.FindAsync([input.IngredientId.Value], cancellationToken);
             }
 
-            if (ingredient is null && !knownIngredients.TryGetValue(input.Name.Trim(), out ingredient))
+            if (ingredient is null && !knownIngredients.TryGetValue(standardName, out ingredient))
             {
-                ingredient = new TIngredient { FName = input.Name.Trim() };
+                ingredient = new TIngredient { FName = standardName };
                 context.TIngredients.Add(ingredient);
                 knownIngredients[ingredient.FName] = ingredient;
             }
