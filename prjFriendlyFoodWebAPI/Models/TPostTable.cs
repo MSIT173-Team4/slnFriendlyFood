@@ -13,8 +13,6 @@ public partial class TPostTable
 
     public string FTitle { get; set; } = null!;
 
-    public string FPostContent { get; set; } = null!;
-
     public int FLikes { get; set; }
 
     public int FViews { get; set; }
@@ -34,4 +32,8 @@ public partial class TPostTable
     public virtual TUser FUser { get; set; } = null!;
 
     public virtual ICollection<TMessageTable> TMessageTables { get; set; } = new List<TMessageTable>();
+
+    public virtual ICollection<TPostBlockTable> TPostBlockTables { get; set; } = new List<TPostBlockTable>();
+
+    public virtual ICollection<TUser> FUsers { get; set; } = new List<TUser>();
 }

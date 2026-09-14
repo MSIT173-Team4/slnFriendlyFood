@@ -13,13 +13,11 @@ public partial class TMessageTable
 
     public int FUserId { get; set; }
 
-    public int FReplyMessageId { get; set; }
+    public int? FReplyMessageId { get; set; }
 
     public string FMessageContent { get; set; } = null!;
 
     public int FLikes { get; set; }
-
-    public int FViews { get; set; }
 
     public DateTime FMessageDate { get; set; }
 
@@ -28,4 +26,6 @@ public partial class TMessageTable
     public virtual TPostTable FPost { get; set; } = null!;
 
     public virtual TUser FUser { get; set; } = null!;
+
+    public virtual ICollection<TUser> FUsers { get; set; } = new List<TUser>();
 }
