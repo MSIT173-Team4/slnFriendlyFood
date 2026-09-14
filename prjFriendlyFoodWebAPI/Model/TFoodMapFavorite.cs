@@ -1,0 +1,19 @@
+﻿using System;
+using System.Collections.Generic;
+
+namespace prjFriendlyFoodWebAPI.Model;
+
+public partial class TFoodMapFavorite
+{
+    public int FFavoriteId { get; set; }
+
+    public int FUserId { get; set; }
+
+    public int FPlaceId { get; set; }
+
+    public DateTime FCreatedTime { get; set; }
+
+    public virtual TFoodMapPlace FPlace { get; set; } = null!;
+
+    public virtual TUser FUser { get; set; } = null!;
+}

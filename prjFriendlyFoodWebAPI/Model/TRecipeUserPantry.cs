@@ -1,0 +1,27 @@
+﻿using System;
+using System.Collections.Generic;
+
+namespace prjFriendlyFoodWebAPI.Model;
+
+public partial class TRecipeUserPantry
+{
+    public int FPantryId { get; set; }
+
+    public int FUserId { get; set; }
+
+    public int FIngredientId { get; set; }
+
+    public decimal FAmount { get; set; }
+
+    public string FUnit { get; set; } = null!;
+
+    public DateOnly FExpirationDate { get; set; }
+
+    public DateTime FCreatedAt { get; set; }
+
+    public string FStorageLocation { get; set; } = null!;
+
+    public string? FNote { get; set; }
+
+    public virtual TUser FUser { get; set; } = null!;
+}

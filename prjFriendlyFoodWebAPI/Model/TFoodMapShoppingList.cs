@@ -1,0 +1,23 @@
+﻿using System;
+using System.Collections.Generic;
+
+namespace prjFriendlyFoodWebAPI.Model;
+
+public partial class TFoodMapShoppingList
+{
+    public int FShoppingListId { get; set; }
+
+    public int FUserId { get; set; }
+
+    public string FListName { get; set; } = null!;
+
+    public string FStatus { get; set; } = null!;
+
+    public DateTime FCreatedTime { get; set; }
+
+    public DateTime? FUpdatedTime { get; set; }
+
+    public virtual TUser FUser { get; set; } = null!;
+
+    public virtual ICollection<TFoodMapShoppingListItem> TFoodMapShoppingListItems { get; set; } = new List<TFoodMapShoppingListItem>();
+}

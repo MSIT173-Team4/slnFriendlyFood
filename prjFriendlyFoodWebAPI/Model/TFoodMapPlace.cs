@@ -1,0 +1,49 @@
+﻿using System;
+using System.Collections.Generic;
+
+namespace prjFriendlyFoodWebAPI.Model;
+
+public partial class TFoodMapPlace
+{
+    public int FPlaceId { get; set; }
+
+    public string? FGooglePlaceId { get; set; }
+
+    public int FPlaceCategoryId { get; set; }
+
+    public string FName { get; set; } = null!;
+
+    public string FAddress { get; set; } = null!;
+
+    public decimal FLatitude { get; set; }
+
+    public decimal FLongitude { get; set; }
+
+    public string? FPhone { get; set; }
+
+    public string? FDescription { get; set; }
+
+    public decimal? FGoogleRating { get; set; }
+
+    public int? FGoogleReviewCount { get; set; }
+
+    public string? FBusinessStatus { get; set; }
+
+    public bool FIsActive { get; set; }
+
+    public DateTime FCreatedTime { get; set; }
+
+    public DateTime? FUpdatedTime { get; set; }
+
+    public DateTime? FSyncedAt { get; set; }
+
+    public virtual TFoodMapPlaceCategory FPlaceCategory { get; set; } = null!;
+
+    public virtual ICollection<TFoodMapFavorite> TFoodMapFavorites { get; set; } = new List<TFoodMapFavorite>();
+
+    public virtual ICollection<TFoodMapPlaceImage> TFoodMapPlaceImages { get; set; } = new List<TFoodMapPlaceImage>();
+
+    public virtual ICollection<TFoodMapRecommendationPlace> TFoodMapRecommendationPlaces { get; set; } = new List<TFoodMapRecommendationPlace>();
+
+    public virtual ICollection<TFoodMapTripPlace> TFoodMapTripPlaces { get; set; } = new List<TFoodMapTripPlace>();
+}

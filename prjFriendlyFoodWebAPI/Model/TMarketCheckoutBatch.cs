@@ -1,0 +1,59 @@
+﻿using System;
+using System.Collections.Generic;
+
+namespace prjFriendlyFoodWebAPI.Model;
+
+/// <summary>
+/// 結帳批次(對應綠界一次金流交易,底下可包含多張子訂單)
+/// </summary>
+public partial class TMarketCheckoutBatch
+{
+    /// <summary>
+    /// 結帳批次表ID
+    /// </summary>
+    public long FBatchId { get; set; }
+
+    /// <summary>
+    /// 商店端唯一,對應綠界MerchantTradeNo
+    /// </summary>
+    public string FBatchNo { get; set; } = null!;
+
+    /// <summary>
+    /// 買家
+    /// </summary>
+    public int FUserId { get; set; }
+
+    /// <summary>
+    /// 批次應付總金額
+    /// </summary>
+    public decimal FTotalAmount { get; set; }
+
+    /// <summary>
+    /// 付款狀態；0待付款/1已付款/2部分退款/3已退款/4失敗
+    /// </summary>
+    public int FPaymentStatus { get; set; }
+
+    /// <summary>
+    /// 第三方付款方式
+    /// </summary>
+    public string FPaymentMethod { get; set; } = null!;
+
+    /// <summary>
+    /// 第三方金流交易序號
+    /// </summary>
+    public string? FPaymentTradeNo { get; set; }
+
+    /// <summary>
+    /// 建立日期
+    /// </summary>
+    public DateTime FCreatedDate { get; set; }
+
+    /// <summary>
+    /// 實際完成付款成功時間
+    /// </summary>
+    public DateTime? FPaidAt { get; set; }
+
+    public virtual TUser FUser { get; set; } = null!;
+
+    public virtual ICollection<TMarketOrder> TMarketOrders { get; set; } = new List<TMarketOrder>();
+}

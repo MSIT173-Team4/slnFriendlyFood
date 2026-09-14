@@ -1,0 +1,27 @@
+﻿using System;
+using System.Collections.Generic;
+
+namespace prjFriendlyFoodWebAPI.Model;
+
+public partial class TFoodMapTripRoute
+{
+    public int FTripRouteId { get; set; }
+
+    public int FTripId { get; set; }
+
+    public decimal? FTotalDistance { get; set; }
+
+    public int? FTotalDuration { get; set; }
+
+    public string? FPolyline { get; set; }
+
+    public string? FRouteProvider { get; set; }
+
+    public int FRouteVersion { get; set; }
+
+    public DateTime FCreatedTime { get; set; }
+
+    public DateTime? FUpdatedTime { get; set; }
+
+    public virtual TFoodMapTrip FTrip { get; set; } = null!;
+}
