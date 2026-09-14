@@ -10,6 +10,15 @@ namespace prjFriendlyFoodWebAPI.Controllers.Recipe;
 public sealed class RecipeEngagementController(
     IRecipeEngagementService engagementService) : BaseController
 {
+    [HttpPost("view")]
+    public async Task<ActionResult<ApiResponse<RecipeViewDto>>> RecordView(
+        int recipeId,
+        CancellationToken cancellationToken)
+    {
+        var result = await engagementService.RecordViewAsync(recipeId, cancellationToken);
+        return FromServiceResult(result);
+    }
+
     [HttpPost("like")]
     public async Task<ActionResult<ApiResponse<RecipeEngagementDto>>> ToggleLike(
         int recipeId,
