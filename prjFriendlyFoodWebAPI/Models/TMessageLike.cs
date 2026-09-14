@@ -3,11 +3,11 @@
 using System;
 using System.Collections.Generic;
 
-public partial class TRecipeCategory
+public partial class TMessageLike
 {
-    public int FCategoryId { get; set; }
+    public int FMessageId { get; set; }
 
-    public string FCategoryName { get; set; }
+    public int FUserId { get; set; }
 
-    public short FDisplayOrder { get; set; }
+    public virtual TMessageTable FMessage { get; set; }
 }
