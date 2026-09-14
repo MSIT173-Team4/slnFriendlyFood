@@ -11,8 +11,6 @@ public partial class TPostTable
 
     public string FTitle { get; set; }
 
-    public string FPostContent { get; set; }
-
     public int FLikes { get; set; }
 
     public int FViews { get; set; }
