@@ -8,10 +8,10 @@
    "MinimumProductVersion": "2.6.1604",
    "ModelNamespace": null,
    "OutputContextPath": null,
-   "OutputPath": null,
+   "OutputPath": "Models",
    "PluralRules": null,
    "PreserveCasingWithRegex": true,
-   "ProjectRootNamespace": null,
+   "ProjectRootNamespace": "prjFriendlyFoodWebAPI.Models",
    "Schemas": null,
    "SelectedHandlebarsLanguage": 2,
    "SelectedToBeGenerated": 0,
@@ -148,6 +148,10 @@
       },
       {
          "Name": "[dbo].[tMessageTable]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tPostBlockTable]",
          "ObjectType": 0
       },
       {
