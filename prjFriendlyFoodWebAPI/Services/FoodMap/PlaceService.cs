@@ -1,9 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using prjFriendlyFoodWebAPI.DTOs.FoodMap;
 using prjFriendlyFoodWebAPI.Models;
-using prjFriendlyFoodWebAPI.Services.Interfaces;
+using prjFriendlyFoodWebAPI.Services.FoodMap.Interfaces;
 
-namespace prjFriendlyFoodWebAPI.Services
+namespace prjFriendlyFoodWebAPI.Services.FoodMap
 {
     public class PlaceService : IFoodMapService
     {
@@ -27,7 +27,7 @@ namespace prjFriendlyFoodWebAPI.Services
                     FPhone = r.FPhone,
                     FGoogleRating = r.FGoogleRating,
                     FGoogleReviewCount = r.FGoogleReviewCount,
-                    FIsRecommend = r.FIsRecommend
+                    FIsRecommend = r.TFoodMapRecommendationPlaces.Any(item => item.FIsRecommend)
                 })
                 .ToListAsync();
         }
@@ -47,12 +47,12 @@ namespace prjFriendlyFoodWebAPI.Services
                     FPhone = r.FPhone,
                     FGoogleRating = r.FGoogleRating,
                     FGoogleReviewCount = r.FGoogleReviewCount,
-                    FIsRecommend = r.FIsRecommend
+                    FIsRecommend = r.TFoodMapRecommendationPlaces.Any(item => item.FIsRecommend)
                 })
                 .FirstOrDefaultAsync();
         }
 
-        public async Task<List<PlaceDTO>> GetNearbyPlacesAsync(NearbyPlacesDTO request)
+        public async Task<List<PlaceDTO>> GetNearbyPlacesAsync(PlacesDTO request)
         {
             // Step 1：算出 Bounding Box 邊界（粗篩，SQL 端執行）
             var latDelta = request.Radius / 111m; // 緯度 1 度約等於 111 公里
@@ -68,6 +68,7 @@ namespace prjFriendlyFoodWebAPI.Services
                 .Where(r =>
                     r.FLatitude >= minLat && r.FLatitude <= maxLat &&
                     r.FLongitude >= minLng && r.FLongitude <= maxLng)
+                .Include(place => place.TFoodMapRecommendationPlaces)
                 .ToListAsync();
 
             // Step 2：精確計算距離（記憶體端執行，資料量已經很小）
@@ -91,7 +92,7 @@ namespace prjFriendlyFoodWebAPI.Services
                     FPhone = x.Place.FPhone,
                     FGoogleRating = x.Place.FGoogleRating,
                     FGoogleReviewCount = x.Place.FGoogleReviewCount,
-                    FIsRecommend = x.Place.FIsRecommend
+                    FIsRecommend = x.Place.TFoodMapRecommendationPlaces.Any(item => item.FIsRecommend)
                 })
                 .ToList();
             return result;
@@ -125,7 +126,7 @@ namespace prjFriendlyFoodWebAPI.Services
 
             foreach (var radius in searchRadiusSteps)
             {
-                result = await GetNearbyPlacesAsync(new NearbyPlacesDTO
+                result = await GetNearbyPlacesAsync(new PlacesDTO
                 {
                     Latitude = latitude,
                     Longitude = longitude,

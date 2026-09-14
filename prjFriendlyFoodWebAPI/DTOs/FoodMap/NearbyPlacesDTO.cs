@@ -2,7 +2,7 @@
 
 namespace prjFriendlyFoodWebAPI.DTOs.FoodMap
 {
-    public class NearbyPlacesDTO
+    public class PlacesDTO
     {
         
         public decimal Latitude { get; set; }

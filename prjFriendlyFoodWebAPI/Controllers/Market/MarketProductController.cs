@@ -32,7 +32,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                 .Select(p => new DTOMarketPublicProductList
                 {
                     ProductId = p.FProductId,
-                    ProductName = p.FProductname,
+                    ProductName = p.FProductName,
                     Description = p.FDescription,
                     Stock = p.FStock,
                     Price = p.FPrice,
@@ -69,7 +69,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                 .Select(p => new DTOMarketPublicProductList
                 {
                     ProductId = p.FProductId,
-                    ProductName = p.FProductname,
+                    ProductName = p.FProductName,
                     Description = p.FDescription,
                     Stock = p.FStock,
                     Price = p.FPrice,
@@ -103,7 +103,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                 FSellerId = sellerId,
                 FProductNo = $"P{Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper()}", // 先用這個暫時產生，之後再改規則
                 FProductsCategoryNo = dto.ProductsCategoryNo,
-                FProductname = dto.ProductName,
+                FProductName = dto.ProductName,
                 FPrice = dto.Price,
                 FStock = dto.Stock,
                 FBrandOrOrigin = dto.BrandOrOrigin,
