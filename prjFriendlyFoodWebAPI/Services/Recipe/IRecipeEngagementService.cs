@@ -5,6 +5,10 @@ namespace prjFriendlyFoodWebAPI.Services.Recipe;
 
 public interface IRecipeEngagementService
 {
+    Task<ServiceResult<RecipeViewDto>> RecordViewAsync(
+        int recipeId,
+        CancellationToken cancellationToken);
+
     Task<ServiceResult<RecipeEngagementDto>> ToggleLikeAsync(
         int recipeId,
         int userId,

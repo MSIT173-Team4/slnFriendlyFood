@@ -7,6 +7,34 @@ namespace prjFriendlyFoodWebAPI.Services.Recipe;
 
 public sealed class RecipeEngagementService(FriendlyFoodDbContext context) : IRecipeEngagementService
 {
+    public async Task<ServiceResult<RecipeViewDto>> RecordViewAsync(
+        int recipeId,
+        CancellationToken cancellationToken)
+    {
+        var affectedRows = await context.TRecipes
+            .Where(recipe => recipe.FRecipeId == recipeId && recipe.FStatus == 1)
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(recipe => recipe.FViews, recipe => recipe.FViews + 1)
+                    .SetProperty(recipe => recipe.FUpdatedAt, DateTime.UtcNow),
+                cancellationToken);
+
+        if (affectedRows == 0)
+        {
+            return ServiceResult<RecipeViewDto>.NotFound("找不到公開的食譜資料。");
+        }
+
+        var viewCount = await context.TRecipes
+            .AsNoTracking()
+            .Where(recipe => recipe.FRecipeId == recipeId)
+            .Select(recipe => recipe.FViews)
+            .SingleAsync(cancellationToken);
+
+        return ServiceResult<RecipeViewDto>.Success(
+            new RecipeViewDto(recipeId, viewCount),
+            "瀏覽次數已更新。");
+    }
+
     public async Task<ServiceResult<RecipeEngagementDto>> ToggleLikeAsync(
         int recipeId,
         int userId,
