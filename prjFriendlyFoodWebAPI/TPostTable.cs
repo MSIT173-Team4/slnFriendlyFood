@@ -32,4 +32,6 @@ public partial class TPostTable
     public virtual TUser FUser { get; set; }
 
     public virtual ICollection<TMessageTable> TMessageTables { get; set; } = new List<TMessageTable>();
+
+    public virtual ICollection<TUser> FUsers { get; set; } = new List<TUser>();
 }

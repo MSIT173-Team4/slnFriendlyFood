@@ -143,7 +143,15 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[tMessageLike]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[tMessageTable]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tPostLike]",
          "ObjectType": 0
       },
       {
