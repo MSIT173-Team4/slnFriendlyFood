@@ -32,7 +32,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                 .Where(p => p.FProductStatus == 1)
                 .Skip((page - 1) * 10)
                 .Take(10)
-                .Select(p => new DTOMarketPublicProductList
+                .Select(p => new MarketPublicProductListDto
                 {
                     ProductId = p.FProductId,
                     ProductName = p.FProductName,
@@ -69,7 +69,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
             var products = await query
                 .Skip((page - 1) * 10)
                 .Take(10)
-                .Select(p => new DTOMarketPublicProductList
+                .Select(p => new MarketPublicProductListDto
                 {
                     ProductId = p.FProductId,
                     ProductName = p.FProductName,
@@ -93,7 +93,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         [HttpPost]
         [DisableRequestSizeLimit]
         [RequestFormLimits(MultipartBodyLengthLimit = 52428800)] // 50MB
-        public async Task<IActionResult> CreateProduct([FromForm] DTOMarketProductCreate dto)
+        public async Task<IActionResult> CreateProduct([FromForm] MarketProductCreateDto dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
@@ -176,7 +176,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         //消費者端搜尋商品
         // GET /api/MarketProduct/search?keyword=糯米&categoryNo=F01&minPrice=50&maxPrice=200&sortBy=price_asc&page=1
         [HttpGet("search")]
-        public async Task<IActionResult> SearchProducts([FromQuery] DTOMarketProductSearch dto)
+        public async Task<IActionResult> SearchProducts([FromQuery] MarketProductSearchDto dto)
         {
             // 基礎條件：只拿架上商品
             var query = _context.TMarketProducts
@@ -212,7 +212,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
             var products = await query
                 .Skip((dto.Page - 1) * 10)
                 .Take(10)
-                .Select(p => new DTOMarketPublicProductList
+                .Select(p => new MarketPublicProductListDto
                 {
                     ProductId = p.FProductId,
                     ProductName = p.FProductName,

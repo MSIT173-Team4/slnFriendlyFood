@@ -1,6 +1,6 @@
 ﻿namespace prjFriendlyFoodWebAPI.DTOs.Market
 {
-    public class DTOMarketProductCategory
+    public class MarketProductCategoryDto
     {
         public long FCategoryId { get; set; }
         public string FCategoryNo { get; set; }

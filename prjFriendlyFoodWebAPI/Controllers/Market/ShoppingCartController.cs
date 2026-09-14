@@ -18,7 +18,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
 
         //POST api/ShoppingCart/add
         [HttpPost("add")]//這個是在明確告訴當Angular使用app且用Post打過來的時候要執行以下的程式
-        public async Task<IActionResult> AddToCart([FromBody] DTOAddToCart dto)
+        public async Task<IActionResult> AddToCart([FromBody] AddToCartDto dto)
         {
             //TODO:之後換成JWT取得真實userId
             int userId = 1;

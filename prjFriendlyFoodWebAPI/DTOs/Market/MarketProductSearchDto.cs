@@ -1,6 +1,6 @@
 ﻿namespace prjFriendlyFoodWebAPI.DTOs.Market
 {
-    public class DTOMarketProductSearch
+    public class MarketProductSearchDto
     {
         /// <summary>
         /// 關鍵字（商品名稱模糊搜尋）

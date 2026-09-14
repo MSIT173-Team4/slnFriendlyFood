@@ -2,7 +2,7 @@
 
 namespace prjFriendlyFoodWebAPI.DTOs.Market
 {
-    public class DTOMarketProductCreate
+    public class MarketProductCreateDto
     {
         [Required(ErrorMessage = "產品類別必填")]
         public string ProductsCategoryNo { get; set; }
