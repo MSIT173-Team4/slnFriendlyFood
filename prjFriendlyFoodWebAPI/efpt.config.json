@@ -130,7 +130,16 @@
       "name": "[dbo].[tMarketShoppingCart]"
     },
     {
+      "name": "[dbo].[tMessageLike]"
+    },
+    {
       "name": "[dbo].[tMessageTable]"
+    },
+    {
+      "name": "[dbo].[tPostBlockTable]"
+    },
+    {
+      "name": "[dbo].[tPostLike]"
     },
     {
       "name": "[dbo].[tPostTable]"

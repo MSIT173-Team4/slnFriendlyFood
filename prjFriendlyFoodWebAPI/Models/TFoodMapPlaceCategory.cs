@@ -15,6 +15,10 @@ public partial class TFoodMapPlaceCategory
 
     public DateTime FCreatedTime { get; set; }
 
+    public string? FGooglePlaceType { get; set; }
+
+    public DateTime? FUpdatedTime { get; set; }
+
     public virtual ICollection<TFoodMapIngredientPlaceCategory> TFoodMapIngredientPlaceCategories { get; set; } = new List<TFoodMapIngredientPlaceCategory>();
 
     public virtual ICollection<TFoodMapPlace> TFoodMapPlaces { get; set; } = new List<TFoodMapPlace>();
