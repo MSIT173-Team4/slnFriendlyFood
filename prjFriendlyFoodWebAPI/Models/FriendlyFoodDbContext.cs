@@ -111,7 +111,7 @@ public partial class FriendlyFoodDbContext : DbContext
     {
         modelBuilder.Entity<TApply>(entity =>
         {
-            entity.HasKey(e => e.FId).HasName("PK__tApply__D9F8227C89416337");
+            entity.HasKey(e => e.FId);
 
             entity.ToTable("tApply");
 
@@ -156,7 +156,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TApplyStatus>(entity =>
         {
-            entity.HasKey(e => e.FId).HasName("PK__tApplySt__D9F8227CEEADF9F1");
+            entity.HasKey(e => e.FId).HasName("PK__tApplySt__D9F8227C126F2F02");
 
             entity.ToTable("tApplyStatus");
 
@@ -204,7 +204,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TConversationMember>(entity =>
         {
-            entity.HasKey(e => new { e.FConversationId, e.FUserId }).HasName("PK__tConvers__8DB173362B53D891");
+            entity.HasKey(e => new { e.FConversationId, e.FUserId }).HasName("PK__tConvers__8DB173369DCBC64B");
 
             entity.ToTable("tConversationMember");
 
@@ -218,12 +218,12 @@ public partial class FriendlyFoodDbContext : DbContext
             entity.HasOne(d => d.FConversation).WithMany(p => p.TConversationMembers)
                 .HasForeignKey(d => d.FConversationId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__tConversa__fConv__57DD0BE4");
+                .HasConstraintName("FK__tConversa__fConv__5BAD9CC8");
 
             entity.HasOne(d => d.FUser).WithMany(p => p.TConversationMembers)
                 .HasForeignKey(d => d.FUserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__tConversa__fUser__4E1E9780");
+                .HasConstraintName("FK__tConversa__fUser__5CA1C101");
         });
 
         modelBuilder.Entity<TConversationMessagesTable>(entity =>
@@ -238,8 +238,7 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasColumnName("fContent");
             entity.Property(e => e.FConversationId).HasColumnName("fConversationId");
             entity.Property(e => e.FCreatedDate)
-                .HasPrecision(0)
-                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime")
                 .HasColumnName("fCreatedDate");
             entity.Property(e => e.FDeletedDate)
                 .HasPrecision(0)
@@ -250,8 +249,7 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasColumnName("fMessageType");
             entity.Property(e => e.FSenderId).HasColumnName("fSenderId");
             entity.Property(e => e.FUpdatedDate)
-                .HasPrecision(0)
-                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime")
                 .HasColumnName("fUpdatedDate");
 
             entity.HasOne(d => d.FConversation).WithMany(p => p.TConversationMessagesTables)
@@ -268,12 +266,10 @@ public partial class FriendlyFoodDbContext : DbContext
 
             entity.Property(e => e.FConversationId).HasColumnName("fConversationId");
             entity.Property(e => e.FCreatedDate)
-                .HasPrecision(0)
-                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime")
                 .HasColumnName("fCreatedDate");
             entity.Property(e => e.FUpdatedDate)
-                .HasPrecision(0)
-                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime")
                 .HasColumnName("fUpdatedDate");
         });
 
@@ -287,7 +283,6 @@ public partial class FriendlyFoodDbContext : DbContext
 
             entity.Property(e => e.FFavoriteId).HasColumnName("fFavoriteID");
             entity.Property(e => e.FCreatedTime)
-                .HasPrecision(0)
                 .HasDefaultValueSql("(sysdatetime())", "DF_tFoodMapFavorite_fCreatedTime")
                 .HasColumnName("fCreatedTime");
             entity.Property(e => e.FPlaceId).HasColumnName("fPlaceID");
@@ -317,7 +312,6 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasMaxLength(50)
                 .HasColumnName("fCategoryName");
             entity.Property(e => e.FCreatedTime)
-                .HasPrecision(0)
                 .HasDefaultValueSql("(sysdatetime())", "DF_tFoodMapIngredientCategory_CreatedTime")
                 .HasColumnName("fCreatedTime");
             entity.Property(e => e.FDescription)
@@ -335,7 +329,6 @@ public partial class FriendlyFoodDbContext : DbContext
 
             entity.Property(e => e.FMappingId).HasColumnName("fMappingID");
             entity.Property(e => e.FCreatedTime)
-                .HasPrecision(0)
                 .HasDefaultValueSql("(sysdatetime())", "DF_tFoodMapIngredientPlaceCategory_fCreatedTime")
                 .HasColumnName("fCreatedTime");
             entity.Property(e => e.FIngredientCategoryId).HasColumnName("fIngredientCategoryID");
@@ -376,7 +369,6 @@ public partial class FriendlyFoodDbContext : DbContext
                 .IsUnicode(false)
                 .HasColumnName("fBusinessStatus");
             entity.Property(e => e.FCreatedTime)
-                .HasPrecision(0)
                 .HasDefaultValueSql("(sysdatetime())", "DF_tFoodMapPlace_CreatedTime")
                 .HasColumnName("fCreatedTime");
             entity.Property(e => e.FDescription).HasColumnName("fDescription");
@@ -433,7 +425,6 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasMaxLength(50)
                 .HasColumnName("fCategoryName");
             entity.Property(e => e.FCreatedTime)
-                .HasPrecision(0)
                 .HasDefaultValueSql("(sysdatetime())", "DF_tFoodMapPlaceCategory_fCreatedTime")
                 .HasColumnName("fCreatedTime");
             entity.Property(e => e.FDescription)
@@ -455,7 +446,6 @@ public partial class FriendlyFoodDbContext : DbContext
 
             entity.Property(e => e.FImageId).HasColumnName("fImageID");
             entity.Property(e => e.FCreatedTime)
-                .HasPrecision(0)
                 .HasDefaultValueSql("(sysdatetime())", "DF_tFoodMapPlaceImage_fCreatedTime")
                 .HasColumnName("fCreatedTime");
             entity.Property(e => e.FImageType)
@@ -486,7 +476,6 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasColumnName("fBannerImageURL");
             entity.Property(e => e.FContent).HasColumnName("fContent");
             entity.Property(e => e.FCreatedTime)
-                .HasPrecision(0)
                 .HasDefaultValueSql("(sysdatetime())", "DF_tFoodMapRecommendationCampaign_fCreatedTime")
                 .HasColumnName("fCreatedTime");
             entity.Property(e => e.FEndDate).HasColumnName("fEndDate");
@@ -515,7 +504,6 @@ public partial class FriendlyFoodDbContext : DbContext
             entity.Property(e => e.FCampaignPlaceId).HasColumnName("fCampaignPlaceID");
             entity.Property(e => e.FCampaignId).HasColumnName("fCampaignID");
             entity.Property(e => e.FCreatedTime)
-                .HasPrecision(0)
                 .HasDefaultValueSql("(sysdatetime())", "DF_tFoodMapRecommendationPlace_fCreatedTime")
                 .HasColumnName("fCreatedTime");
             entity.Property(e => e.FIsRecommend)
@@ -542,7 +530,6 @@ public partial class FriendlyFoodDbContext : DbContext
 
             entity.Property(e => e.FShoppingListId).HasColumnName("fShoppingListID");
             entity.Property(e => e.FCreatedTime)
-                .HasPrecision(0)
                 .HasDefaultValueSql("(sysdatetime())", "DF_tFoodMapShoppingList_fCreatedTime")
                 .HasColumnName("fCreatedTime");
             entity.Property(e => e.FListName)
@@ -574,7 +561,6 @@ public partial class FriendlyFoodDbContext : DbContext
 
             entity.Property(e => e.FShoppingItemId).HasColumnName("fShoppingItemID");
             entity.Property(e => e.FCreatedTime)
-                .HasPrecision(0)
                 .HasDefaultValueSql("(sysdatetime())", "DF_tFoodMapShoppingListItem_fCreatedTime")
                 .HasColumnName("fCreatedTime");
             entity.Property(e => e.FIngredientId).HasColumnName("fIngredientID");
@@ -607,7 +593,6 @@ public partial class FriendlyFoodDbContext : DbContext
 
             entity.Property(e => e.FTripId).HasColumnName("fTripID");
             entity.Property(e => e.FCreatedTime)
-                .HasPrecision(0)
                 .HasDefaultValueSql("(sysdatetime())", "DF_tFoodMapTrip_fCreatedTime")
                 .HasColumnName("fCreatedTime");
             entity.Property(e => e.FDescription)
@@ -646,7 +631,6 @@ public partial class FriendlyFoodDbContext : DbContext
 
             entity.Property(e => e.FTripPlaceId).HasColumnName("fTripPlaceID");
             entity.Property(e => e.FCreatedTime)
-                .HasPrecision(0)
                 .HasDefaultValueSql("(sysdatetime())", "DF_tFoodMapTripPlace_fCreatedTime")
                 .HasColumnName("fCreatedTime");
             entity.Property(e => e.FDistanceFromPrevious)
@@ -682,7 +666,6 @@ public partial class FriendlyFoodDbContext : DbContext
 
             entity.Property(e => e.FTripRouteId).HasColumnName("fTripRouteID");
             entity.Property(e => e.FCreatedTime)
-                .HasPrecision(0)
                 .HasDefaultValueSql("(sysdatetime())", "DF_tFoodMapTripRoute_fCreatedTime")
                 .HasColumnName("fCreatedTime");
             entity.Property(e => e.FPolyline).HasColumnName("fPolyline");
@@ -742,7 +725,7 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasComment("商店端唯一,對應綠界MerchantTradeNo")
                 .HasColumnName("fBatchNo");
             entity.Property(e => e.FCreatedDate)
-                .HasDefaultValueSql("(sysdatetime())")
+                .HasDefaultValueSql("sysdatetime()")
                 .HasComment("建立日期")
                 .HasColumnName("fCreatedDate");
             entity.Property(e => e.FPaidAt)
@@ -867,7 +850,7 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasComment("賣家是否已確認/列印出貨單；0 未確認 1 已確認/已列印")
                 .HasColumnName("fIsShippingConfirmed");
             entity.Property(e => e.FOrderDate)
-                .HasDefaultValueSql("(sysdatetime())")
+                .HasDefaultValueSql("sysdatetime()")
                 .HasComment("訂單日期")
                 .HasColumnName("fOrderDate");
             entity.Property(e => e.FOrderNo)
@@ -1153,7 +1136,7 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasComment("收藏ID")
                 .HasColumnName("fFavoriteID");
             entity.Property(e => e.FCreatedDate)
-                .HasDefaultValueSql("(sysdatetime())")
+                .HasDefaultValueSql("sysdatetime()")
                 .HasComment("加入時間")
                 .HasColumnName("fCreatedDate");
             entity.Property(e => e.FProductId)
@@ -1184,7 +1167,7 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasComment("圖片ID")
                 .HasColumnName("fProductImageID");
             entity.Property(e => e.FCreatedDate)
-                .HasDefaultValueSql("(sysdatetime())")
+                .HasDefaultValueSql("sysdatetime()")
                 .HasComment("建立日期")
                 .HasColumnName("fCreatedDate");
             entity.Property(e => e.FImageUrl)
@@ -1220,7 +1203,7 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasComment("評論內容")
                 .HasColumnName("fComment");
             entity.Property(e => e.FCreatedDate)
-                .HasDefaultValueSql("(sysdatetime())")
+                .HasDefaultValueSql("sysdatetime()")
                 .HasComment("評論時間")
                 .HasColumnName("fCreatedDate");
             entity.Property(e => e.FOrderDetailsId)
@@ -1262,7 +1245,7 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasComment("明細唯一識別碼")
                 .HasColumnName("fCartItemId");
             entity.Property(e => e.FCreatedDate)
-                .HasDefaultValueSql("(sysdatetime())")
+                .HasDefaultValueSql("sysdatetime()")
                 .HasComment("加入時間")
                 .HasColumnName("fCreatedDate");
             entity.Property(e => e.FProductId)
@@ -1306,8 +1289,7 @@ public partial class FriendlyFoodDbContext : DbContext
                 .IsRequired()
                 .HasColumnName("fMessageContent");
             entity.Property(e => e.FMessageDate)
-                .HasPrecision(0)
-                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime")
                 .HasColumnName("fMessageDate");
             entity.Property(e => e.FMessageState)
                 .HasDefaultValue((byte)1, "DF_MessageTable_fMessageState")
@@ -1325,52 +1307,6 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasForeignKey(d => d.FUserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Message_User");
-
-            entity.HasMany(d => d.FUsers).WithMany(p => p.FMessages)
-                .UsingEntity<Dictionary<string, object>>(
-                    "TMessageLike",
-                    r => r.HasOne<TUser>().WithMany()
-                        .HasForeignKey("FUserId")
-                        .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("FK_tMessageLike_tUser"),
-                    l => l.HasOne<TMessageTable>().WithMany()
-                        .HasForeignKey("FMessageId")
-                        .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("FK_tMessageLike_tMessageTable"),
-                    j =>
-                    {
-                        j.HasKey("FMessageId", "FUserId");
-                        j.ToTable("tMessageLike");
-                        j.IndexerProperty<int>("FMessageId").HasColumnName("fMessageID");
-                        j.IndexerProperty<int>("FUserId").HasColumnName("fUserId");
-                    });
-        });
-
-        modelBuilder.Entity<TPostBlockTable>(entity =>
-        {
-            entity.HasKey(e => e.FPostBlockId).HasName("PK__tPostBlo__92BD60D697CC495B");
-
-            entity.ToTable("tPostBlockTable");
-
-            entity.Property(e => e.FPostBlockId).HasColumnName("fPostBlockID");
-            entity.Property(e => e.FBlockType)
-                .IsRequired()
-                .HasMaxLength(20)
-                .HasColumnName("fBlockType");
-            entity.Property(e => e.FContent).HasColumnName("fContent");
-            entity.Property(e => e.FCreateDate)
-                .HasPrecision(0)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnName("fCreateDate");
-            entity.Property(e => e.FMediaUrl)
-                .HasMaxLength(500)
-                .HasColumnName("fMediaUrl");
-            entity.Property(e => e.FPostId).HasColumnName("fPostID");
-            entity.Property(e => e.FSortOrder).HasColumnName("fSortOrder");
-
-            entity.HasOne(d => d.FPost).WithMany(p => p.TPostBlockTables)
-                .HasForeignKey(d => d.FPostId)
-                .HasConstraintName("FK_tPostBlockTable_tPostTable");
         });
 
         modelBuilder.Entity<TPostTable>(entity =>
@@ -1382,8 +1318,7 @@ public partial class FriendlyFoodDbContext : DbContext
             entity.Property(e => e.FPostId).HasColumnName("fPostID");
             entity.Property(e => e.FLikes).HasColumnName("fLikes");
             entity.Property(e => e.FPostDate)
-                .HasPrecision(0)
-                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime")
                 .HasColumnName("fPostDate");
             entity.Property(e => e.FPostState)
                 .HasDefaultValue((byte)1, "DF_PostTable_fPostState")
@@ -1624,7 +1559,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TSeller>(entity =>
         {
-            entity.HasKey(e => e.FId).HasName("PK__tSeller__D9F8227C08DBAF71");
+            entity.HasKey(e => e.FId).HasName("PK__tSeller__D9F8227CFE1D5F15");
 
             entity.ToTable("tSeller");
 
@@ -1670,7 +1605,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TStatus>(entity =>
         {
-            entity.HasKey(e => e.FId).HasName("PK__tStatus__D9F8227C1A5B5342");
+            entity.HasKey(e => e.FId).HasName("PK__tStatus__D9F8227CF6669BAD");
 
             entity.ToTable("tStatus");
 
@@ -1690,7 +1625,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
             entity.ToTable("tUser");
 
-            entity.HasIndex(e => e.FUsername, "UQ__tmp_ms_x__A8F6564A1F436BA9").IsUnique();
+            entity.HasIndex(e => e.FUsername, "UQ__tUser__A8F6564A0327633C").IsUnique();
 
             entity.Property(e => e.FId).HasColumnName("fId");
             entity.Property(e => e.FAddress)

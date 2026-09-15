@@ -39,7 +39,7 @@ public partial class TFoodMapPlace
 
     public DateTime? FSyncedAt { get; set; }
 
-    public virtual TFoodMapPlaceCategory FPlaceCategory { get; set; }
+    public virtual TFoodMapPlaceCategory FPlaceCategory { get; set; } = null!;
 
     public virtual ICollection<TFoodMapFavorite> TFoodMapFavorites { get; set; } = new List<TFoodMapFavorite>();
 

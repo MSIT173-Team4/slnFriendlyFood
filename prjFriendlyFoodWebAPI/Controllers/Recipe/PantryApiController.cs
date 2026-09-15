@@ -31,7 +31,7 @@ public sealed class PantryApiController(
                 ServiceResult<PantryAiDiagnosticDto>.Validation(
                     validationMessage));
         }
-
+        
         var result = await pantryAiClient.DiagnoseImageAsync(file!, cancellationToken);
         return FromServiceResult(result);
     }
