@@ -109,9 +109,28 @@ namespace prjFriendlyFoodWebAPI.Controllers.Member
                 Expires = DateTime.UtcNow.AddMinutes(15),
                 Path = "/"
             });
+            var refreshToken = _ts.GernateTokenString();
+            Response.Cookies.Append("refreshToken", await refreshToken, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.None,
+                Expires = DateTime.UtcNow.AddDays(7),
+                Path = "/"
+            });
             return Ok(new
             {
                 message = "Login success",
+            });
+        }
+        [HttpPost("Logout")]
+        [Authorize]
+        public async Task<IActionResult> Logout()
+        {
+            Response.Cookies.Delete("token");
+            return Ok(new
+            {
+                message = "Logout success"
             });
         }
         [HttpGet("Test")]
