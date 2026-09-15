@@ -3,7 +3,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace prjFriendlyFoodWebAPI.Models.Models;
+namespace prjFriendlyFoodWebAPI.Models;
 
 public partial class TMessageTable
 {
@@ -26,8 +26,6 @@ public partial class TMessageTable
     public virtual TPostTable FPost { get; set; }
 
     public virtual TUser FUser { get; set; }
-
-    public virtual TUser FUser { get; set; } = null!;
 
     public virtual ICollection<TUser> FUsers { get; set; } = new List<TUser>();
 }

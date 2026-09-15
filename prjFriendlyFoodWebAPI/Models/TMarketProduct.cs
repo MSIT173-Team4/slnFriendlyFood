@@ -3,7 +3,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace prjFriendlyFoodWebAPI.Models.Models;
+namespace prjFriendlyFoodWebAPI.Models;
 
 /// <summary>
 /// 商品主檔

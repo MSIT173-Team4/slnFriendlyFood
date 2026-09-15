@@ -3,7 +3,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace prjFriendlyFoodWebAPI.Models.Models;
+namespace prjFriendlyFoodWebAPI.Models;
 
 public partial class TFoodMapPlace
 {
@@ -39,7 +39,7 @@ public partial class TFoodMapPlace
 
     public DateTime? FSyncedAt { get; set; }
 
-    public virtual TFoodMapPlaceCategory FPlaceCategory { get; set; } = null!;
+    public virtual TFoodMapPlaceCategory FPlaceCategory { get; set; }
 
     public virtual ICollection<TFoodMapFavorite> TFoodMapFavorites { get; set; } = new List<TFoodMapFavorite>();
 

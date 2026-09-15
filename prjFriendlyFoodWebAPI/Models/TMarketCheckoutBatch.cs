@@ -3,7 +3,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace prjFriendlyFoodWebAPI.Models.Models;
+namespace prjFriendlyFoodWebAPI.Models;
 
 /// <summary>
 /// 結帳批次(對應綠界一次金流交易,底下可包含多張子訂單)

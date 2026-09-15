@@ -3,7 +3,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace prjFriendlyFoodWebAPI.Models.Models;
+namespace prjFriendlyFoodWebAPI.Models;
 
 public partial class TFoodMapPlaceCategory
 {
@@ -15,7 +15,7 @@ public partial class TFoodMapPlaceCategory
 
     public DateTime FCreatedTime { get; set; }
 
-    public string? FGooglePlaceType { get; set; }
+    public string FGooglePlaceType { get; set; }
 
     public DateTime? FUpdatedTime { get; set; }
 
