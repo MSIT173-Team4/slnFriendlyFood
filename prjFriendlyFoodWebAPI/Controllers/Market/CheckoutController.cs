@@ -133,5 +133,16 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                 return StatusCode(500, $"建立訂單失敗:{ex.Message}");
             }
         }
+        private string GenerateBatchNo()
+        {
+            return "B" + DateTime.Now.ToString("yyyyMMddHHmmss") +
+                   new Random().Next(1000, 9999).ToString();
+        }
+
+        private string GenerateOrderNo()
+        {
+            return "O" + DateTime.Now.ToString("yyyyMMddHHmmss") +
+                   new Random().Next(1000, 9999).ToString();
+        }
     }
 }
