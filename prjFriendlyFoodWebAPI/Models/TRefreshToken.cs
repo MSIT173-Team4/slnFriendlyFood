@@ -5,13 +5,19 @@ using System.Collections.Generic;
 
 namespace prjFriendlyFoodWebAPI.Models;
 
-public partial class TRecipeLike
+public partial class TRefreshToken
 {
-    public int FLikeId { get; set; }
+    public int FId { get; set; }
 
     public int FUserId { get; set; }
 
-    public int FRecipeId { get; set; }
+    public string FToken { get; set; }
+
+    public DateTime FCreate { get; set; }
+
+    public DateTime FExpired { get; set; }
+
+    public bool FRevoke { get; set; }
 
     public virtual TUser FUser { get; set; }
 }
