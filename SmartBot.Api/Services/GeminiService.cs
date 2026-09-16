@@ -1,11 +1,15 @@
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Options;
+using SmartBot.Api.Configurations;
 
 namespace SmartBot.Api.Services;
 
-public sealed class GeminiService(HttpClient httpClient, IConfiguration configuration) : IGeminiService
+public sealed class GeminiService(
+    HttpClient httpClient,
+    IOptions<GeminiAgentOptions> options) : IGeminiService
 {
-    private const string DefaultModelId = "gemini-3.5-flash-lite";
+    private readonly GeminiAgentOptions agentOptions = options.Value;
 
     public Task<string> GenerateReplyAsync(string userMessage) =>
         GenerateReplyWithAgentAsync(string.Empty, userMessage, 0.7);
@@ -99,16 +103,23 @@ public sealed class GeminiService(HttpClient httpClient, IConfiguration configur
 
     private async Task<string> SendAsync(object requestPayload, CancellationToken cancellationToken)
     {
-        var apiKey = (Environment.GetEnvironmentVariable("GEMINI_API_KEY")
-                      ?? configuration["GEMINI_API_KEY"]
-                      ?? string.Empty).Trim();
+        var apiKey = agentOptions.ApiKey.Trim();
+        var modelName = agentOptions.ModelName.Trim();
 
         if (string.IsNullOrWhiteSpace(apiKey))
         {
-            throw new InvalidOperationException("未找到 GEMINI_API_KEY，請確認 .env 或環境變數設定。");
+            throw new InvalidOperationException(
+                $"未找到 {GeminiAgentOptions.SectionName}:ApiKey，請確認 User Secrets 設定。");
         }
 
-        var endpoint = $"https://generativelanguage.googleapis.com/v1beta/models/{DefaultModelId}:generateContent";
+        if (string.IsNullOrWhiteSpace(modelName))
+        {
+            throw new InvalidOperationException(
+                $"未找到 {GeminiAgentOptions.SectionName}:ModelName，請確認 User Secrets 設定。");
+        }
+
+        var encodedModelName = Uri.EscapeDataString(modelName);
+        var endpoint = $"https://generativelanguage.googleapis.com/v1beta/models/{encodedModelName}:generateContent";
         var jsonBody = JsonSerializer.Serialize(requestPayload);
         using var httpContent = new StringContent(jsonBody, Encoding.UTF8, "application/json");
         using var requestMessage = new HttpRequestMessage(HttpMethod.Post, endpoint)
