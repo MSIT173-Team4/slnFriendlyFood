@@ -3,6 +3,7 @@
     public class RecommendationDTO
     {
         public int FPlaceId { get; set; }
+        
 
         public string FTitle { get; set; } = null!;
 
@@ -11,5 +12,9 @@
         public double?  FDistance { get; set; }
 
         public bool isRecommend { get; set; }
+
+        public List<int> MatchedShoppingItemIDs { get; set; } = [];
+
+        public List<string> MatchedItemNames { get; set; } = [];
     }
 }

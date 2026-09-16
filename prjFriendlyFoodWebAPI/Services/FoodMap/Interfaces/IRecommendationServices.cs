@@ -5,6 +5,6 @@ namespace prjFriendlyFoodWebAPI.Services.FoodMap.Interfaces
 {
     public interface IRecommendationServices
     {
-        Task<List<RecommendationDTO>> GetRecommendationDTOsAsync(long shoppinglistId); 
+        Task<List<RecommendationDTO>> GetRecommendationDTOsAsync(int shoppinglistId); 
     }
 }

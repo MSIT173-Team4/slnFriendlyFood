@@ -34,28 +34,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.FoodMap
             }
             return Ok(place);
         }
-        [HttpGet("nearby")]
-        public async Task<ActionResult<List<PlaceDTO>>> GetNearbyPlaces(
-            [FromQuery] decimal latitude,
-            [FromQuery] decimal longitude,
-            [FromQuery] decimal radius)
-        {
-            var nearbyPlaces = await _placeService.GetNearbyPlacesAsync(new PlacesDTO
-            {
-                Latitude = latitude,
-                Longitude = longitude,
-                Radius = radius
-            });
-            return Ok(nearbyPlaces);
-        }
-        [HttpGet("nearby/fallback")]
-        public async Task<ActionResult<List<PlaceDTO>>> GetNearbyPlacesWithFallback(
-            [FromQuery] decimal latitude,
-            [FromQuery] decimal longitude)
-        {
-            var nearbyPlaces = await _placeService.GetNearbyPlacesWithFallbackAsync(latitude, longitude);
+        
 
-            return Ok(nearbyPlaces);
-        }
     }
 }

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace prjFriendlyFoodWebAPI.Model;
+namespace prjFriendlyFoodWebAPI.Models;
 
 public partial class TPostBlockTable
 {

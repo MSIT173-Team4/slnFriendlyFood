@@ -1,16 +1,19 @@
 ﻿
 using Microsoft.EntityFrameworkCore;
 using prjFriendlyFoodWebAPI.DTOs.FoodMap;
+using prjFriendlyFoodWebAPI.ExternalServices.FoodMap.Google.Interfaces;
 using prjFriendlyFoodWebAPI.Models;
 using prjFriendlyFoodWebAPI.Services.FoodMap.Interfaces;
 
 public class TripServices : ITripServices
 {
     private readonly FriendlyFoodDbContext _context;
+    private readonly IGooglePlacesClient _googlePlacesClient;
 
-    public TripServices(FriendlyFoodDbContext context)
+    public TripServices(FriendlyFoodDbContext context, IGooglePlacesClient googlePlacesClient)
     {
         _context = context;
+        _googlePlacesClient = googlePlacesClient;
     }
     public async Task<List<TripDTO>> GetTripsAsync()
     {
