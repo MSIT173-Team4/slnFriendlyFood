@@ -8,7 +8,7 @@ using prjFriendlyFoodWebAPI.Services.FoodMap;
 using prjFriendlyFoodWebAPI.Services.FoodMap.Interfaces;
 using prjFriendlyFoodWebAPI.Services.Member;
 using System.Text;
-using StackExchange.Redis;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddCors(options =>
@@ -22,13 +22,7 @@ builder.Services.AddCors(options =>
             .AllowCredentials();
     });
 });
-builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
-{
-    var connectionString =
-        builder.Configuration.GetConnectionString("Redis");
 
-    return ConnectionMultiplexer.Connect(connectionString!);
-});
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 .AddJwtBearer(options =>
 {

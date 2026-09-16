@@ -20,6 +20,7 @@ namespace prjFriendlyFoodWebAPI.Services.Member
         {
             return await Task.Run(() => _db.TUsers.Any(user => user.FEmail == email));
         }
+        //register user
         public async Task<TUser> AddUser(UserRegisterDTO u, string password)
         {
             TUser user = new TUser
@@ -38,6 +39,28 @@ namespace prjFriendlyFoodWebAPI.Services.Member
 
             await _db.SaveChangesAsync();
             user = await _db.TUsers.FirstOrDefaultAsync(x => x.FUsername == u.fUsername);
+            return user;
+        }
+        //edit user profile
+        public async Task<TUser> EditProfile(UserEditDTO u,int id)
+        {
+            TUser user = await _db.TUsers.FirstOrDefaultAsync(x => x.FId == id);
+            if (user == null)
+            {
+                throw new InvalidOperationException("User not found");
+            }
+            user.FUsername = u.fUsername;
+            user.FEmail = u.fEmail;
+            user.FPhone = u.fPhone;
+            user.FImage = u.fImage;
+            user.FAddress = u.fAddress;
+            user.FIdNum = u.fIdNum;
+            await _db.SaveChangesAsync();
+            return user;
+        }
+        public async Task<TUser> GetUserById(int id)
+        {
+            var user = await Task.Run(() => _db.TUsers.FirstOrDefault(u => u.FId == id));
             return user;
         }
         public async Task<string> GetPasswordByUsername(string username)

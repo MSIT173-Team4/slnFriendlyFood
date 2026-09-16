@@ -109,15 +109,15 @@ namespace prjFriendlyFoodWebAPI.Controllers.Member
                 Expires = DateTime.UtcNow.AddMinutes(15),
                 Path = "/"
             });
-            var refreshToken = _ts.GernateTokenString();
-            Response.Cookies.Append("refreshToken", await refreshToken, new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.None,
-                Expires = DateTime.UtcNow.AddDays(7),
-                Path = "/"
-            });
+            //var refreshToken = _ts.GernateTokenString();
+            //Response.Cookies.Append("refreshToken", await refreshToken, new CookieOptions
+            //{
+            //    HttpOnly = true,
+            //    Secure = true,
+            //    SameSite = SameSiteMode.None,
+            //    Expires = DateTime.UtcNow.AddDays(7),
+            //    Path = "/"
+            //});
             return Ok(new
             {
                 message = "Login success",
@@ -140,6 +140,14 @@ namespace prjFriendlyFoodWebAPI.Controllers.Member
             var claims = User.Claims.Select(c => new { c.Type, c.Value });
             TokenDataDTO data =await _ts.GetTokenData(User);
             return Ok(data);
+        }
+        [HttpGet("GetUserProfile")]
+        [Authorize]
+        public async Task<IActionResult> GetUserProfile()
+        {
+            TokenDataDTO data = await _ts.GetTokenData(User);
+            TUser user = await _us.GetUserById(Convert.ToInt32(data.UserId));
+            return Ok(user);
         }
     }
 }
