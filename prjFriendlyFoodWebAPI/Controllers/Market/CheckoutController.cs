@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using prjFriendlyFoodWebAPI.DTOs.Market;
 using prjFriendlyFoodWebAPI.Models;
+using System.Text;
+using System.Web;
 using static prjFriendlyFoodWebAPI.DTOs.Market.CheckoutDto;
 
 namespace prjFriendlyFoodWebAPI.Controllers.Market
@@ -44,8 +46,8 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                 { "MerchantTradeDate", DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss") },
                 { "PaymentType", "aio" },
                 { "TotalAmount", ((int)batch.FTotalAmount).ToString() },
-                { "TradeDesc", "FriendlyFood商城結帳" },
-                { "ItemName", "商城訂單" },
+                { "TradeDesc", "FriendlyFood Checkout" },
+                { "ItemName", "Market Order" },
                 { "ReturnURL", returnUrl },
                 { "OrderResultURL", orderResultUrl },
                 { "ChoosePayment", "Credit" },
@@ -53,6 +55,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
             };
 
             var checkMacValue = GetCheckMacValue(param, hashKey, hashIV);
+
             param.Add("CheckMacValue", checkMacValue);
 
             var html = BuildECPayForm(param);
@@ -60,17 +63,20 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
             return Content(html, "text/html");
         }
 
-        private string GetCheckMacValue(Dictionary<string, string>param, string hashKey, string hashIV)
+        private string GetCheckMacValue(Dictionary<string, string> param, string hashKey, string hashIV)
         {
-            var sorted = param.OrderBy(p => p.Key).Select(p => $"{p.Key}={p.Value}");
+            var sorted = param
+                .OrderBy(p => p.Key, StringComparer.OrdinalIgnoreCase)
+                .Select(p => $"{p.Key}={p.Value}");
 
             var raw = $"HashKey={hashKey}&" +
-                string.Join("&", sorted) +
-                $"&HashIV={hashIV}";
+                      string.Join("&", sorted) +
+                      $"&HashIV={hashIV}";
 
-            var encoded = Uri.EscapeDataString(raw)
-                .Replace("%20", "+")
-                .ToLower();
+            // 綠界正確的編碼方式：
+            // 整串 UrlEncode（= 變 %3d，& 變 %26，/ 變 %2f 等）
+            // 然後全部轉小寫，不要還原任何字元
+            var encoded = HttpUtility.UrlEncode(raw).ToLower();
 
             using var sha256 = System.Security.Cryptography.SHA256.Create();
             var bytes = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(encoded));
@@ -274,6 +280,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
 
             if (batch.FPaymentStatus == 1)
                 return Content("1|OK", "text/plain");
+
             // --- 7. 更新批次付款狀態 ---
             batch.FPaymentStatus = 1;
             batch.FPaymentTradeNo = tradeNo;
@@ -299,29 +306,38 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         // 給使用者看的，不是給綠界的伺服器打的
         // =====================================================
         [HttpGet("PaymentResult")]
-        public IActionResult PaymentResult([FromQuery] string rtnCode, [FromQuery] string merchantTradeNo)
+        [HttpPost("PaymentResult")]
+        public IActionResult PaymentResult()
         {
+            // 綠界用 POST 送回來，參數在 Form；瀏覽器直接 GET 的話參數在 Query
+            var rtnCode = Request.HasFormContentType && Request.Form.ContainsKey("RtnCode")
+                ? Request.Form["RtnCode"].ToString()
+                : Request.Query["rtnCode"].ToString();
+
+            var merchantTradeNo = Request.HasFormContentType && Request.Form.ContainsKey("MerchantTradeNo")
+                ? Request.Form["MerchantTradeNo"].ToString()
+                : Request.Query["merchantTradeNo"].ToString();
+
             // rtnCode = 1 代表成功
             if (rtnCode == "1")
             {
                 return Content($@"
-            <html>
-            <body>
-                <h2>付款成功！</h2>
-                <p>訂單編號：{merchantTradeNo}</p>
-                <p>感謝您的購買。</p>
-            </body>
-            </html>", "text/html");
+                <html>
+                <head><meta charset='utf-8'></head>
+                <body>
+                    <h2>付款成功！</h2>
+                    <p>訂單編號：{merchantTradeNo}</p>
+                    <p>感謝您的購買。</p>
+                </body></html>", "text/html; charset=utf-8");
             }
 
             return Content($@"
-        <html>
-        <body>
-            <h2>付款失敗或已取消</h2>
-            <p>訂單編號：{merchantTradeNo}</p>
-            <p>請重新嘗試付款。</p>
-        </body>
-        </html>", "text/html");
+                <html>
+                <head><meta charset='utf-8'></head>
+                <body>
+                    <h2>付款失敗或已取消</h2>
+                    <p>訂單編號：{merchantTradeNo}</p>
+                </body></html>", "text/html; charset=utf-8");
         }
     }
 
