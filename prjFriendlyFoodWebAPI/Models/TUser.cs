@@ -70,4 +70,8 @@ public partial class TUser
     public virtual ICollection<TRefreshToken> TRefreshTokens { get; set; } = new List<TRefreshToken>();
 
     public virtual ICollection<TSeller> TSellers { get; set; } = new List<TSeller>();
+
+    public virtual ICollection<TMessageTable> FMessages { get; set; } = new List<TMessageTable>();
+
+    public virtual ICollection<TPostTable> FPosts { get; set; } = new List<TPostTable>();
 }

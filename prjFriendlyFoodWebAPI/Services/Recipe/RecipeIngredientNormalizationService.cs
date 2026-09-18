@@ -15,25 +15,25 @@ public sealed class RecipeIngredientNormalizationService(
     private static readonly IReadOnlyDictionary<string, UnitConversion> UnitConversions =
         new Dictionary<string, UnitConversion>(StringComparer.OrdinalIgnoreCase)
         {
-            ["kg"] = new("g", 1000m),
-            ["公斤"] = new("g", 1000m),
-            ["千克"] = new("g", 1000m),
-            ["g"] = new("g", 1m),
-            ["公克"] = new("g", 1m),
-            ["克"] = new("g", 1m),
-            ["l"] = new("ml", 1000m),
-            ["公升"] = new("ml", 1000m),
-            ["升"] = new("ml", 1000m),
-            ["ml"] = new("ml", 1m),
-            ["毫升"] = new("ml", 1m),
-            ["cc"] = new("ml", 1m),
-            ["c.c."] = new("ml", 1m),
-            ["tbsp"] = new("ml", 15m),
-            ["大匙"] = new("ml", 15m),
-            ["湯匙"] = new("ml", 15m),
-            ["tsp"] = new("ml", 5m),
-            ["小匙"] = new("ml", 5m),
-            ["茶匙"] = new("ml", 5m)
+            ["kg"] = new("公克", 1000m),
+            ["公斤"] = new("公克", 1000m),
+            ["千克"] = new("公克", 1000m),
+            ["g"] = new("公克", 1m),
+            ["公克"] = new("公克", 1m),
+            ["克"] = new("公克", 1m),
+            ["l"] = new("毫升", 1000m),
+            ["公升"] = new("毫升", 1000m),
+            ["升"] = new("毫升", 1000m),
+            ["ml"] = new("毫升", 1m),
+            ["毫升"] = new("毫升", 1m),
+            ["cc"] = new("毫升", 1m),
+            ["c.c."] = new("毫升", 1m),
+            ["tbsp"] = new("毫升", 15m),
+            ["大匙"] = new("毫升", 15m),
+            ["湯匙"] = new("毫升", 15m),
+            ["tsp"] = new("毫升", 5m),
+            ["小匙"] = new("毫升", 5m),
+            ["茶匙"] = new("毫升", 5m)
         };
 
     public async Task<ServiceResult<IngredientNormalizationResponseDto>> NormalizeAsync(

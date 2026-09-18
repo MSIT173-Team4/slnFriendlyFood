@@ -15,7 +15,7 @@ public partial class TFoodMapPlaceCategory
 
     public DateTime FCreatedTime { get; set; }
 
-    public string FGooglePlaceType { get; set; }
+    public string? FGooglePlaceType { get; set; }
 
     public DateTime? FUpdatedTime { get; set; }
 
