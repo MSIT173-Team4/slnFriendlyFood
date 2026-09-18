@@ -76,24 +76,47 @@ public sealed class GeminiService(
                     type = "OBJECT",
                     properties = new
                     {
-                        ingredientName = new { type = "STRING" },
-                        freshnessStatus = new { type = "STRING" },
-                        recommendedLocation = new
+                        ingredients = new
                         {
-                            type = "STRING",
-                            @enum = new[] { "冷藏", "冷凍", "常溫" }
-                        },
-                        storageTip = new { type = "STRING" },
-                        estimatedDays = new { type = "INTEGER" }
+                            type = "ARRAY",
+                            items = new
+                            {
+                                type = "OBJECT",
+                                properties = new
+                                {
+                                    ingredientName = new { type = "STRING" },
+                                    freshnessStatus = new { type = "STRING" },
+                                    recommendedLocation = new
+                                    {
+                                        type = "STRING",
+                                        @enum = new[] { "冷藏", "冷凍", "常溫" }
+                                    },
+                                    suggestedUnit = new
+                                    {
+                                        type = "STRING",
+                                        @enum = new[]
+                                        {
+                                            "份", "個", "顆", "根", "把", "束", "支", "尾",
+                                            "塊", "片", "包", "盒", "瓶", "罐", "公克",
+                                            "公斤", "毫升", "公升"
+                                        }
+                                    },
+                                    storageTip = new { type = "STRING" },
+                                    estimatedDays = new { type = "INTEGER" }
+                                },
+                                required = new[]
+                                {
+                                    "ingredientName",
+                                    "freshnessStatus",
+                                    "recommendedLocation",
+                                    "suggestedUnit",
+                                    "storageTip",
+                                    "estimatedDays"
+                                }
+                            }
+                        }
                     },
-                    required = new[]
-                    {
-                        "ingredientName",
-                        "freshnessStatus",
-                        "recommendedLocation",
-                        "storageTip",
-                        "estimatedDays"
-                    }
+                    required = new[] { "ingredients" }
                 }
             }
         };

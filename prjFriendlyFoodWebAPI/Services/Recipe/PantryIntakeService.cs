@@ -12,6 +12,11 @@ public sealed class PantryIntakeService(
 {
     private static readonly HashSet<string> AllowedStorageLocations =
         ["冷藏", "冷凍", "常溫"];
+    private static readonly HashSet<string> AllowedUnits =
+        [
+            "份", "個", "顆", "根", "把", "束", "支", "尾", "塊", "片",
+            "包", "盒", "瓶", "罐", "公克", "公斤", "毫升", "公升"
+        ];
 
     public async Task<ServiceResult<PantryItemDto>> AddItemAsync(
         AddPantryItemRequestDto request,
@@ -95,14 +100,15 @@ public sealed class PantryIntakeService(
             errors.Add("食材名稱為必填，且不可超過 50 個字元。");
         }
 
-        if (request.Amount <= 0)
+        if (request.Amount < 1 || request.Amount > 99_999 ||
+            decimal.Round(request.Amount, 2) != request.Amount)
         {
-            errors.Add("數量必須大於零。");
+            errors.Add("數量須為 1 到 99,999，且最多保留小數點後 2 位。");
         }
 
-        if (string.IsNullOrWhiteSpace(request.Unit) || request.Unit.Trim().Length > 20)
+        if (string.IsNullOrWhiteSpace(request.Unit) || !AllowedUnits.Contains(request.Unit.Trim()))
         {
-            errors.Add("單位為必填，且不可超過 20 個字元。");
+            errors.Add("單位必須從系統提供的選項中選擇。");
         }
 
         if (!AllowedStorageLocations.Contains(request.StorageLocation.Trim()))
