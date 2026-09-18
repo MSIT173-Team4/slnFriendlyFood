@@ -19,7 +19,9 @@ namespace SmartBot.Api.Controllers
         1. 輸出必須完全是合法的 JSON 格式，嚴禁包含 Markdown 標籤（如 ```json ）。
         2. JSON 格式規格：
            {"rawInput": "原始輸入", "standardTaiwaneseName": "標準名稱", "category": "分類(蔬菜/肉類/海鮮/水果/調味料/其他)"}
-        3. 若輸入並非食材，standardTaiwaneseName 請填寫 null，category 填寫 "非食材"，除了上述外，不要加入任何其他說明文字。。
+        3. 使用台灣慣用名稱，例如：西紅柿或番茄改為牛番茄、土豆改為馬鈴薯、菠蘿改為鳳梨。
+        4. 不得將數量、單位或料理方式混入 standardTaiwaneseName。
+        5. 若輸入並非食材，standardTaiwaneseName 請填寫 null，category 填寫 "非食材"，除了上述外，不要加入任何其他說明文字。
         """;
 
         // Agent 2 提示詞：食譜解析
@@ -27,9 +29,11 @@ namespace SmartBot.Api.Controllers
         你是一位食譜結構化資料助手。
         任務：將使用者隨手輸入的食譜文字，拆解為標準化食材計量與依序排列的步驟。
         規則：
-        1. 單位盡量換算為公制（公克 g、毫升 ml、根、顆、匙）。
-        2. 嚴格輸出 JSON 格式，禁止任何額外文字或 Markdown 標籤。
-        3. JSON 格式規格：
+        1. 食材名稱一律使用台灣慣用繁體中文，例如菠蘿改為鳳梨、西紅柿改為牛番茄。
+        2. amount 必須是 JSON 數字，不可輸出「半」、「少許」或中文字數量；半顆轉為 0.5 顆，四分之一轉為 0.25。
+        3. 重量與容量統一使用「公克」及「毫升」；公斤換算為公克、公升換算為毫升。顆、根、片等自然單位可保留。
+        4. 嚴格輸出 JSON 格式，禁止任何額外文字或 Markdown 標籤。
+        5. JSON 格式規格：
            {
              "recipeTitle": "菜名",
              "ingredients": [
