@@ -5,13 +5,15 @@ using System.Collections.Generic;
 
 namespace prjFriendlyFoodWebAPI.Models;
 
-public partial class TRecipeLike
+public partial class TMessageLike
 {
-    public int FLikeId { get; set; }
+    public int FMessageLikeId { get; set; }
+
+    public int FMessageId { get; set; }
 
     public int FUserId { get; set; }
 
-    public int FRecipeId { get; set; }
+    public virtual TMessageTable FMessage { get; set; }
 
     public virtual TUser FUser { get; set; }
 }
