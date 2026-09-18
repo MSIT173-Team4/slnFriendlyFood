@@ -209,7 +209,8 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
             };
 
             // 分頁 + mapping 到 DTO
-            var products = await query
+            var totalCount = await query.CountAsync();
+            var items = await query
                 .Skip((dto.Page - 1) * 10)
                 .Take(10)
                 .Select(p => new MarketPublicProductListDto
@@ -230,7 +231,11 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                 })
                 .ToListAsync();
 
-            return Ok(products);
+            return Ok(new MarketProductPagedResultDto
+            {
+                Items = items,
+                TotalCount = totalCount
+            });
         }
     }
 }
