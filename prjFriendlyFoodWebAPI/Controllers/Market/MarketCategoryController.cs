@@ -22,21 +22,17 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         public async Task<IActionResult> GetCategories()
         {
             var all = await _context.TMarketProductCategories
-                .Select(c => new MarketCategoryDto
-                {
-                    CategoryId = (int)c.FCategoryId,
-                    CategoryNo = c.FCategoryNo,
-                    CategoryName = c.FCategoriesName,
-                    ParentCategoryId = (int?)c.FParentCategoryId
-                })
-                .ToListAsync();
+        .Select(c => new MarketCategoryDto
+        {
+            CategoryId = (int)c.FCategoryId,
+            CategoryNo = c.FCategoryNo,
+            CategoryName = c.FCategoriesName,
+            ParentCategoryId = (int?)c.FParentCategoryId
+        })
+        .ToListAsync();
 
-            // 只取頂層（ParentCategoryId == null）
-            var topLevel = all
-                .Where(c => c.ParentCategoryId == null)
-                .ToList();
+            var topLevel = all.Where(c => c.ParentCategoryId == null).ToList();
 
-            // 把子分類掛到對應的頂層底下
             foreach (var top in topLevel)
             {
                 top.Children = all

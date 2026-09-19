@@ -11,6 +11,11 @@
         /// 分類編號（例如 F01、S02，不傳就不篩選）
         /// </summary>
         public string? CategoryNo { get; set; }
+        /// <summary>
+        /// 抓取最底層分類
+        /// </summary>
+        public int? ParentCategoryId { get; set; }
+
 
         /// <summary>
         /// 最低價格

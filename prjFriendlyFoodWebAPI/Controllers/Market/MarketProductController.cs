@@ -188,8 +188,20 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                 query = query.Where(p => p.FProductName.Contains(dto.Keyword));
 
             // 分類篩選
+            // 子分類精確篩選（點穀物與豆類、肉類等）
             if (!string.IsNullOrEmpty(dto.CategoryNo))
                 query = query.Where(p => p.FProductsCategoryNo == dto.CategoryNo);
+
+            // 頂層分類篩選（點全部商品，用 parentCategoryId 找底下所有子分類）
+            if (dto.ParentCategoryId.HasValue)
+            {
+                var childNos = await _context.TMarketProductCategories
+                    .Where(c => c.FParentCategoryId == dto.ParentCategoryId.Value)
+                    .Select(c => c.FCategoryNo)
+                    .ToListAsync();
+
+                query = query.Where(p => childNos.Contains(p.FProductsCategoryNo));
+            }
 
             // 最低價格
             if (dto.MinPrice.HasValue)
