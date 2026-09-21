@@ -3,9 +3,12 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Identity.Client;
+using Microsoft.IdentityModel.Tokens;
 using prjFriendlyFoodWebAPI.DTOs.Member;
 using prjFriendlyFoodWebAPI.Models;
 using prjFriendlyFoodWebAPI.Services.Member;
+using System.Security.Claims;
 
 namespace prjFriendlyFoodWebAPI.Controllers.Member
 {
@@ -124,22 +127,30 @@ namespace prjFriendlyFoodWebAPI.Controllers.Member
             });
         }
         [HttpPost("Logout")]
-        [Authorize]
-        public async Task<IActionResult> Logout()
+        public IActionResult Logout()
         {
-            Response.Cookies.Delete("token");
+            Response.Cookies.Append("token", "", new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.None,
+                Path = "/",
+                Expires = DateTimeOffset.UtcNow.AddDays(-1)
+            });
+
             return Ok(new
             {
                 message = "Logout success"
             });
         }
-        [HttpGet("Test")]
+        [HttpGet("CheckAuth")]
         [Authorize]
-        public async Task<IActionResult> Test()
+        public IActionResult CheckAuth()
         {
-            var claims = User.Claims.Select(c => new { c.Type, c.Value });
-            TokenDataDTO data =await _ts.GetTokenData(User);
-            return Ok(data);
+            return Ok(new
+            {
+                authenticated = true
+            });
         }
         [HttpGet("GetUserProfile")]
         [Authorize]
@@ -147,7 +158,63 @@ namespace prjFriendlyFoodWebAPI.Controllers.Member
         {
             TokenDataDTO data = await _ts.GetTokenData(User);
             TUser user = await _us.GetUserById(Convert.ToInt32(data.UserId));
-            return Ok(user);
+            UserProfileDTO userData= new UserProfileDTO
+            {
+                Username = user.FUsername,
+                Email = user.FEmail,
+                Phone = user.FPhone,
+                IdNum = user.FIdNum,
+                Address = user.FAddress,
+                Image = user.FImage,
+                CreateTime = user.FCreateTime.ToString("yyyy-MM-dd HH:mm:ss"),
+                LastLogin = user.FLastLogin?.ToString("yyyy-MM-dd HH:mm:ss")
+            };
+
+            return Ok(userData);
+        }
+        [HttpGet("GetUserProfile/{id}")]
+        [Authorize]
+        public async Task<IActionResult> GetUserProfile(int id)
+        {
+            
+            TUser user = await _us.GetUserById(id);
+            UserProfileDTO userData = new UserProfileDTO
+            {
+                Username = user.FUsername,
+                Email = user.FEmail,
+                Phone = user.FPhone,
+                IdNum = user.FIdNum,
+                Address = user.FAddress,
+                Image = user.FImage,
+                CreateTime = user.FCreateTime.ToString("yyyy-MM-dd HH:mm:ss"),
+                LastLogin = user.FLastLogin?.ToString("yyyy-MM-dd HH:mm:ss")
+            };
+
+            return Ok(userData);
+        }
+        [Authorize]
+        [HttpGet("CurrentUser")]
+        public async Task<IActionResult> CurrentUser()
+        {
+            int userId = int.Parse(
+                User.FindFirst(ClaimTypes.NameIdentifier)!.Value
+            );
+
+            TUser? user = await _us.GetUserById(userId);
+
+            if (user == null)
+            {
+                return NotFound(new
+                {
+                    message = "User not found"
+                });
+            }
+
+            return Ok(new
+            {
+                userName = user.FUsername,
+                userImage = user.FImage
+            });
         }
     }
 }

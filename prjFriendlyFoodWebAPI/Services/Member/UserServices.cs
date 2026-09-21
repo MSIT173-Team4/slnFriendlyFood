@@ -1,7 +1,10 @@
-﻿using Microsoft.AspNetCore.Http.HttpResults;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using prjFriendlyFoodWebAPI.DTOs.Member;
 using prjFriendlyFoodWebAPI.Models;
+using System.Security.Claims;
 
 namespace prjFriendlyFoodWebAPI.Services.Member
 {
@@ -41,6 +44,7 @@ namespace prjFriendlyFoodWebAPI.Services.Member
             user = await _db.TUsers.FirstOrDefaultAsync(x => x.FUsername == u.fUsername);
             return user;
         }
+
         //edit user profile
         public async Task<TUser> EditProfile(UserEditDTO u,int id)
         {
