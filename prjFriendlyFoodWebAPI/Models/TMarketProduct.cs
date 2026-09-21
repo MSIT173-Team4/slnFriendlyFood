@@ -85,6 +85,13 @@ public partial class TMarketProduct
     /// </summary>
     public int FReportCount { get; set; }
 
+    /// <summary>
+    /// 官方標準食材Id
+    /// </summary>
+    public int? FIngredientId { get; set; }
+
+    public virtual TIngredient FIngredient { get; set; }
+
     public virtual TMarketProductCategory FProductsCategoryNoNavigation { get; set; }
 
     public virtual TSeller FSeller { get; set; }

@@ -51,7 +51,11 @@ public partial class TUser
 
     public virtual ICollection<TMarketShoppingCart> TMarketShoppingCarts { get; set; } = new List<TMarketShoppingCart>();
 
+    public virtual ICollection<TMessageLike> TMessageLikes { get; set; } = new List<TMessageLike>();
+
     public virtual ICollection<TMessageTable> TMessageTables { get; set; } = new List<TMessageTable>();
+
+    public virtual ICollection<TPostLike> TPostLikes { get; set; } = new List<TPostLike>();
 
     public virtual ICollection<TPostTable> TPostTables { get; set; } = new List<TPostTable>();
 
@@ -64,8 +68,4 @@ public partial class TUser
     public virtual ICollection<TRecipe> TRecipes { get; set; } = new List<TRecipe>();
 
     public virtual ICollection<TSeller> TSellers { get; set; } = new List<TSeller>();
-
-    public virtual ICollection<TMessageTable> FMessages { get; set; } = new List<TMessageTable>();
-
-    public virtual ICollection<TPostTable> FPosts { get; set; } = new List<TPostTable>();
 }

@@ -75,9 +75,13 @@ public partial class FriendlyFoodDbContext : DbContext
 
     public virtual DbSet<TMarketShoppingCart> TMarketShoppingCarts { get; set; }
 
+    public virtual DbSet<TMessageLike> TMessageLikes { get; set; }
+
     public virtual DbSet<TMessageTable> TMessageTables { get; set; }
 
     public virtual DbSet<TPostBlockTable> TPostBlockTables { get; set; }
+
+    public virtual DbSet<TPostLike> TPostLikes { get; set; }
 
     public virtual DbSet<TPostTable> TPostTables { get; set; }
 
@@ -406,6 +410,7 @@ public partial class FriendlyFoodDbContext : DbContext
                 .IsUnicode(false)
                 .HasColumnName("fPhone");
             entity.Property(e => e.FPlaceCategoryId).HasColumnName("fPlaceCategoryID");
+            entity.Property(e => e.FRecommend).HasColumnName("fRecommend");
             entity.Property(e => e.FSyncedAt)
                 .HasPrecision(0)
                 .HasColumnName("fSyncedAt");
@@ -1051,6 +1056,9 @@ public partial class FriendlyFoodDbContext : DbContext
             entity.Property(e => e.FExpirationDate)
                 .HasComment("有效期限")
                 .HasColumnName("fExpirationDate");
+            entity.Property(e => e.FIngredientId)
+                .HasComment("官方標準食材Id")
+                .HasColumnName("fIngredientId");
             entity.Property(e => e.FManufacturingDate)
                 .HasComment("生產日期")
                 .HasColumnName("fManufacturingDate");
@@ -1097,6 +1105,10 @@ public partial class FriendlyFoodDbContext : DbContext
             entity.Property(e => e.FStock)
                 .HasComment("數量")
                 .HasColumnName("fStock");
+
+            entity.HasOne(d => d.FIngredient).WithMany(p => p.TMarketProducts)
+                .HasForeignKey(d => d.FIngredientId)
+                .HasConstraintName("FK_tMarketProduct_tIngredient");
 
             entity.HasOne(d => d.FProductsCategoryNoNavigation).WithMany(p => p.TMarketProducts)
                 .HasPrincipalKey(p => p.FCategoryNo)
@@ -1294,6 +1306,27 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasConstraintName("FK_tMarketShoppingCart_tUser");
         });
 
+        modelBuilder.Entity<TMessageLike>(entity =>
+        {
+            entity.HasKey(e => e.FMessageLikeId);
+
+            entity.ToTable("tMessageLike");
+
+            entity.HasIndex(e => new { e.FMessageId, e.FUserId }, "UQ_tMessageLike_Message_User").IsUnique();
+
+            entity.Property(e => e.FMessageLikeId).HasColumnName("fMessageLikeID");
+            entity.Property(e => e.FMessageId).HasColumnName("fMessageID");
+            entity.Property(e => e.FUserId).HasColumnName("fUserId");
+
+            entity.HasOne(d => d.FMessage).WithMany(p => p.TMessageLikes)
+                .HasForeignKey(d => d.FMessageId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+
+            entity.HasOne(d => d.FUser).WithMany(p => p.TMessageLikes)
+                .HasForeignKey(d => d.FUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+        });
+
         modelBuilder.Entity<TMessageTable>(entity =>
         {
             entity.HasKey(e => e.FMessageId).HasName("PK_MessageTable");
@@ -1325,25 +1358,6 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasForeignKey(d => d.FUserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_Message_User");
-
-            entity.HasMany(d => d.FUsers).WithMany(p => p.FMessages)
-                .UsingEntity<Dictionary<string, object>>(
-                    "TMessageLike",
-                    r => r.HasOne<TUser>().WithMany()
-                        .HasForeignKey("FUserId")
-                        .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("FK_tMessageLike_tUser"),
-                    l => l.HasOne<TMessageTable>().WithMany()
-                        .HasForeignKey("FMessageId")
-                        .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("FK_tMessageLike_tMessageTable"),
-                    j =>
-                    {
-                        j.HasKey("FMessageId", "FUserId");
-                        j.ToTable("tMessageLike");
-                        j.IndexerProperty<int>("FMessageId").HasColumnName("fMessageID");
-                        j.IndexerProperty<int>("FUserId").HasColumnName("fUserId");
-                    });
         });
 
         modelBuilder.Entity<TPostBlockTable>(entity =>
@@ -1371,6 +1385,27 @@ public partial class FriendlyFoodDbContext : DbContext
             entity.HasOne(d => d.FPost).WithMany(p => p.TPostBlockTables)
                 .HasForeignKey(d => d.FPostId)
                 .HasConstraintName("FK_tPostBlockTable_tPostTable");
+        });
+
+        modelBuilder.Entity<TPostLike>(entity =>
+        {
+            entity.HasKey(e => e.FPostLikeId);
+
+            entity.ToTable("tPostLike");
+
+            entity.HasIndex(e => new { e.FPostId, e.FUserId }, "UQ_tPostLike_Post_User").IsUnique();
+
+            entity.Property(e => e.FPostLikeId).HasColumnName("fPostLikeID");
+            entity.Property(e => e.FPostId).HasColumnName("fPostID");
+            entity.Property(e => e.FUserId).HasColumnName("fUserId");
+
+            entity.HasOne(d => d.FPost).WithMany(p => p.TPostLikes)
+                .HasForeignKey(d => d.FPostId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+
+            entity.HasOne(d => d.FUser).WithMany(p => p.TPostLikes)
+                .HasForeignKey(d => d.FUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
         });
 
         modelBuilder.Entity<TPostTable>(entity =>
@@ -1410,25 +1445,6 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasForeignKey(d => d.FUserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_PostTable_User");
-
-            entity.HasMany(d => d.FUsers).WithMany(p => p.FPosts)
-                .UsingEntity<Dictionary<string, object>>(
-                    "TPostLike",
-                    r => r.HasOne<TUser>().WithMany()
-                        .HasForeignKey("FUserId")
-                        .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("FK_tPostLike_tUser"),
-                    l => l.HasOne<TPostTable>().WithMany()
-                        .HasForeignKey("FPostId")
-                        .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("FK_tPostLike_tPostTable"),
-                    j =>
-                    {
-                        j.HasKey("FPostId", "FUserId");
-                        j.ToTable("tPostLike");
-                        j.IndexerProperty<int>("FPostId").HasColumnName("fPostID");
-                        j.IndexerProperty<int>("FUserId").HasColumnName("fUserId");
-                    });
         });
 
         modelBuilder.Entity<TRecipe>(entity =>

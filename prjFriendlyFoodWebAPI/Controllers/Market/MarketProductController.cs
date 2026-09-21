@@ -249,5 +249,116 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                 TotalCount = totalCount
             });
         }
+
+        // GET /api/MarketProduct/{id}
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetProductDetail(int id)
+        {
+            var product = await _context.TMarketProducts
+                .Where(p => p.FProductId == id && p.FProductStatus == 1)
+                .Select(p => new MarketProductDetailDto
+                {
+                    ProductId = p.FProductId,
+                    ProductName = p.FProductName,
+                    Description = p.FDescription,
+                    Stock = p.FStock,
+                    Price = p.FPrice,
+                    BrandOrOrigin = p.FBrandOrOrigin,
+                    ManufacturingDate = p.FManufacturingDate,
+                    ExpirationDate = p.FExpirationDate,
+                    ProductStatus = p.FProductStatus,
+                    ImageUrls = p.TMarketProductImages
+                        .OrderBy(img => img.FSortOrder)
+                        .Select(img => ImageBaseUrl + img.FImageUrl)
+                        .ToList(),
+
+                    // 評論統計：從 tMarketProductReview 計算
+                    AverageRating = p.TMarketProductReviews.Any()
+                        ? Math.Round(p.TMarketProductReviews.Average(r => (double)r.FRating), 1)
+                        : 0,
+                    ReviewCount = p.TMarketProductReviews.Count(),
+
+                    // 賣家資訊：JOIN tSeller
+                    SellerId = p.FSellerId,
+                    SellerName = p.FSeller.FSellerName,
+                    SellerDescription = p.FSeller.FDescription,
+                    SellerProductCount = _context.TMarketProducts
+                        .Count(sp => sp.FSellerId == p.FSellerId && sp.FProductStatus == 1)
+                })
+                .FirstOrDefaultAsync();
+
+            if (product == null)
+                return NotFound(new { message = "商品不存在" });
+
+            return Ok(product);
+        }
+
+        // GET /api/MarketProduct/{id}/reviews?page=1&pageSize=3
+        [HttpGet("{id}/reviews")]
+        public async Task<IActionResult> GetProductReviews(int id, [FromQuery] int page = 1, [FromQuery] int pageSize = 3)
+        {
+            var query = _context.TMarketProductReviews
+                .Where(r => r.FProductId == id)
+                .OrderByDescending(r => r.FCreatedDate);
+
+            var totalCount = await query.CountAsync();
+
+            var items = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(r => new MarketReviewDto
+                {
+                    ReviewId = r.FReviewId,
+                    // 遮蔽名稱：取第一個字 + ＊ + 最後一個字
+                    // 例如「王小芬」→「王＊芬」，「王芬」→「王＊」
+                    ReviewerName = r.FUser.FUsername.Length >= 2
+                        ? r.FUser.FUsername.Substring(0, 1) + "＊" + r.FUser.FUsername.Substring(r.FUser.FUsername.Length - 1)
+                        : r.FUser.FUsername.Substring(0, 1) + "＊",
+                    Rating = r.FRating,
+                    Comment = r.FComment,
+                    CreatedDate = r.FCreatedDate
+                })
+                .ToListAsync();
+
+            return Ok(new MarketReviewPagedDto
+            {
+                Items = items,
+                TotalCount = totalCount
+            });
+        }
+
+        // GET /api/MarketProduct/{id}/recipes
+        [HttpGet("{id}/recipes")]
+        public async Task<IActionResult> GetRelatedRecipes(int id)
+        {
+            var product = await _context.TMarketProducts
+                .Where(p => p.FProductId == id)
+                .Select(p => new { p.FIngredientId })
+                .FirstOrDefaultAsync();
+
+            if (product == null || product.FIngredientId == null)
+                return Ok(new List<MarketRelatedRecipeDto>());
+
+            // 用 Join 取代導覽屬性
+            var recipes = await _context.TRecipeIngredients
+                .Where(ri => ri.FIngredientId == product.FIngredientId)
+                .Join(
+                    _context.TRecipes,
+                    ri => ri.FRecipeId,
+                    r => r.FRecipeId,
+                    (ri, r) => new MarketRelatedRecipeDto
+                    {
+                        RecipeId = r.FRecipeId,
+                        RecipeName = r.FTitle,
+                        ImageUrl = r.FCoverImageUrl,
+                        CookingTime = r.FCookingMinutes
+                    }
+                )
+                .Take(4)
+                .ToListAsync();
+
+            return Ok(recipes);
+        }
     }
+
 }
