@@ -35,9 +35,7 @@ public partial class TPostTable
 
     public virtual ICollection<TPostBlockTable> TPostBlockTables { get; set; } = new List<TPostBlockTable>();
 
-    public virtual ICollection<TUser> FUsers { get; set; } = new List<TUser>();
-
-    public virtual ICollection<TPostBlockTable> TPostBlockTables { get; set; } = new List<TPostBlockTable>();
+    public virtual ICollection<TPostBookmark> TPostBookmarks { get; set; } = new List<TPostBookmark>();
 
     public virtual ICollection<TPostLike> TPostLikes { get; set; } = new List<TPostLike>();
 }
