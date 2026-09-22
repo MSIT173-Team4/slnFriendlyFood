@@ -9,7 +9,7 @@ using prjFriendlyFoodWebAPI.DTOs.Member;
 using prjFriendlyFoodWebAPI.Models;
 using prjFriendlyFoodWebAPI.Services.Member;
 using System.Security.Claims;
-
+using Google.Apis.Auth;
 namespace prjFriendlyFoodWebAPI.Controllers.Member
 {
     [Route("api/[controller]")]
@@ -19,8 +19,10 @@ namespace prjFriendlyFoodWebAPI.Controllers.Member
         private readonly UserServices _us;
         private readonly EncodeServices _es;
         private readonly TokenServices _ts;
-        public UsersController(UserServices userServices, EncodeServices encodeServices, TokenServices tokenServices)
+        private readonly IConfiguration _config;
+        public UsersController(UserServices userServices, EncodeServices encodeServices, TokenServices tokenServices,IConfiguration configuration)
         {
+            _config = configuration;
             _us = userServices;
             _es = encodeServices;
             _ts = tokenServices;
@@ -214,6 +216,113 @@ namespace prjFriendlyFoodWebAPI.Controllers.Member
             {
                 userName = user.FUsername,
                 userImage = user.FImage
+            });
+        }
+        [HttpPost("GoogleLogin")]
+        public async Task<IActionResult> GoogleLogin(GoogleLoginDTO dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.Credential))
+            {
+                return BadRequest(new
+                {
+                    message = "缺少 Google Credential"
+                });
+            }
+
+            try
+            {
+
+                var settings =
+                    new GoogleJsonWebSignature.ValidationSettings
+                    {
+                        Audience = new[]
+                        {
+                    _config[
+                        "Authentication:Google:ClientId"
+                    ]!
+                        }
+                    };
+
+                var payload =
+                    await GoogleJsonWebSignature.ValidateAsync(
+                        dto.Credential,
+                        settings
+                    );
+
+                string googleUserId = payload.Subject;
+                TExternalLogin? externalLogin =
+                    await _us.GetExternalLogin(
+                        "Google",
+                        googleUserId
+                    );
+                if (externalLogin != null)
+                {
+                    TUser? user =
+                        await _us.GetUserById(externalLogin.FUserId);
+
+                    if (user == null)
+                    {
+                        return Unauthorized(new
+                        {
+                            message = "找不到綁定的會員"
+                        });
+                    }
+                    return await GoogleLoginSuccess(user);
+                    // 暫時測試
+                    //return Ok(new
+                    //{
+                    //    message = "Google 登入成功",
+                    //    userId = user.FId,
+                    //    username = user.FUsername
+                    //});
+                }
+                if (externalLogin == null)
+                {
+                    TUser? existingUser =await _us.GetUserByEmail(payload.Email);
+                    if (existingUser != null)
+                    {
+                        await _us.AddExternalLogin(existingUser.FId, "Google", payload.Subject);
+                        return await GoogleLoginSuccess(existingUser);
+                    }
+                }
+                return Ok(new
+                {
+                    requiresRegistration = true,
+                    googleUserId = payload.Subject,
+                    email = payload.Email,
+                    name = payload.Name,
+                    picture = payload.Picture
+                });
+
+            }
+            catch (InvalidJwtException)
+            {
+                return Unauthorized(new
+                {
+                    message = "Google 登入驗證失敗"
+                });
+            }
+        }
+        private async Task<IActionResult> GoogleLoginSuccess(TUser user)
+        {
+            string token = await _ts.GenerateToken(user);
+
+            Response.Cookies.Append(
+                "token",
+                token,
+                new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = true,
+                    SameSite = SameSiteMode.None,
+                    Expires = DateTime.UtcNow.AddMinutes(15),
+                    Path = "/"
+                }
+            );
+
+            return Ok(new
+            {
+                message = "Google login success"
             });
         }
     }

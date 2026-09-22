@@ -87,5 +87,31 @@ namespace prjFriendlyFoodWebAPI.Services.Member
             var user = await Task.Run(() => _db.TUsers.FirstOrDefault(u => u.FEmail == email));
             return user;
         }
+        public async Task<TExternalLogin?> GetExternalLogin(
+        string provider,
+        string providerUserId)
+        {
+            return await _db.TExternalLogins.FirstOrDefaultAsync(
+                x => x.FProvider == provider && x.FProviderUserId == providerUserId);
+        }
+        public async Task<TExternalLogin> AddExternalLogin(
+        int userId,
+        string provider,
+        string providerUserId)
+        {
+            TExternalLogin externalLogin = new TExternalLogin
+            {
+                FUserId = userId,
+                FProvider = provider,
+                FProviderUserId = providerUserId
+            };
+
+            _db.TExternalLogins.Add(externalLogin);
+
+            await _db.SaveChangesAsync();
+
+            return externalLogin;
+        }
     }
 }
+
