@@ -10,4 +10,6 @@ public partial class TIngredient
     public int FId { get; set; }
 
     public string FName { get; set; }
+
+    public virtual ICollection<TMarketProduct> TMarketProducts { get; set; } = new List<TMarketProduct>();
 }

@@ -27,8 +27,5 @@ public partial class TMessageTable
 
     public virtual TUser FUser { get; set; }
 
-    public virtual TUser FUser { get; set; } = null!;
-
-    public virtual ICollection<TUser> FUsers { get; set; } = new List<TUser>();
     public virtual ICollection<TMessageLike> TMessageLikes { get; set; } = new List<TMessageLike>();
 }
