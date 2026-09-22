@@ -307,39 +307,111 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         // =====================================================
         [HttpGet("PaymentResult")]
         [HttpPost("PaymentResult")]
+        [AllowAnonymous]
         public IActionResult PaymentResult()
         {
-            // 綠界用 POST 送回來，參數在 Form；瀏覽器直接 GET 的話參數在 Query
-            var rtnCode = Request.HasFormContentType && Request.Form.ContainsKey("RtnCode")
-                ? Request.Form["RtnCode"].ToString()
-                : Request.Query["rtnCode"].ToString();
-
-            var merchantTradeNo = Request.HasFormContentType && Request.Form.ContainsKey("MerchantTradeNo")
+            // 從綠界的 Form POST 或 Query String 取 MerchantTradeNo
+            var merchantTradeNo = Request.Form.ContainsKey("MerchantTradeNo")
                 ? Request.Form["MerchantTradeNo"].ToString()
-                : Request.Query["merchantTradeNo"].ToString();
+                : Request.Query["MerchantTradeNo"].ToString();
 
-            // rtnCode = 1 代表成功
-            if (rtnCode == "1")
+            if (!string.IsNullOrEmpty(merchantTradeNo))
             {
-                return Content($@"
-                <html>
-                <head><meta charset='utf-8'></head>
-                <body>
-                    <h2>付款成功！</h2>
-                    <p>訂單編號：{merchantTradeNo}</p>
-                    <p>感謝您的購買。</p>
-                </body></html>", "text/html; charset=utf-8");
+                var batch = _context.TMarketCheckoutBatches
+                    .FirstOrDefault(b => b.FBatchNo == merchantTradeNo);
+
+                if (batch != null)
+                {
+                    return Redirect($"{_config["AngularBaseUrl"]}/checkout/complete/{batch.FBatchId}");
+                }
             }
 
-            return Content($@"
-                <html>
-                <head><meta charset='utf-8'></head>
-                <body>
-                    <h2>付款失敗或已取消</h2>
-                    <p>訂單編號：{merchantTradeNo}</p>
-                </body></html>", "text/html; charset=utf-8");
+            // fallback
+            return Redirect($"{_config["AngularBaseUrl"]}/market");
+        }
+
+        //=======================================================
+
+        /// <summary>
+        /// 訂單完成頁資料
+        /// GET /api/Checkout/OrderComplete/{batchId}
+        /// 綠界付款完成後，後端 PaymentResult redirect 到 Angular 帶 batchId，
+        /// Angular 再來打這支 API 取得完整資料顯示，避免把資料塞在 URL query string 上
+        /// </summary>
+        /// =====================================================
+
+        [HttpGet("OrderComplete/{batchId}")]
+        public async Task<IActionResult> GetOrderComplete(long batchId)
+        {
+            // Include 鏈：批次 → 子訂單 → 賣家、明細 → 商品 → 圖片、折扣
+            var batch = await _context.TMarketCheckoutBatches
+                .Include(b => b.TMarketOrders)
+                    .ThenInclude(o => o.FSeller)                   // ← 導覽屬性確認存在 ✓
+                .Include(b => b.TMarketOrders)
+                    .ThenInclude(o => o.TMarketOrderDetails)
+                        .ThenInclude(d => d.FProduct)
+                            .ThenInclude(p => p.TMarketProductImages)
+                .Include(b => b.TMarketOrders)
+                    .ThenInclude(o => o.TMarketOrderDiscounts)
+                .FirstOrDefaultAsync(b => b.FBatchId == batchId);
+
+            if (batch == null)
+                return NotFound(new { message = "找不到此批次訂單" });
+
+            var firstOrder = batch.TMarketOrders.FirstOrDefault();
+
+            // 商品折抵 + 運費折抵分開加總（TMarketOrder 有個別欄位）
+            var totalProductDiscount = batch.TMarketOrders.Sum(o => o.FProductDiscount);
+            var totalShippingDiscount = batch.TMarketOrders.Sum(o => o.FShippingDiscount);
+            var totalDiscount = totalProductDiscount + totalShippingDiscount;
+
+            // 商品原價小計（折扣前）
+            var subTotal = batch.TMarketOrders
+                .SelectMany(o => o.TMarketOrderDetails)
+                .Sum(d => d.FUnitPrice * d.FQuantity);
+
+            // 運費：各子訂單原始運費扣掉運費折抵
+            var shippingFee = batch.TMarketOrders.Sum(o => o.FShippingFee - o.FShippingDiscount);
+
+            var dto = new OrderCompleteDto
+            {
+                BatchId = batch.FBatchId,
+                BatchNo = batch.FBatchNo,
+                PaidAt = batch.FPaidAt ?? batch.FCreatedDate,
+                PaymentMethod = batch.FPaymentMethod ?? "信用卡",
+                PaymentStatus = batch.FPaymentStatus,
+                TotalAmount = batch.FTotalAmount,
+                SubTotal = subTotal,
+                DiscountAmount = totalDiscount,
+                ShippingFee = shippingFee,
+
+                RecipientName = firstOrder?.FRecipientName ?? string.Empty,
+                RecipientPhone = firstOrder?.FRecipientPhone ?? string.Empty,
+                ShippingAddress = firstOrder?.FShippingAddress ?? string.Empty,
+                ShippingMethod = firstOrder?.FShippingMethod ?? string.Empty,
+
+                OrderGroups = batch.TMarketOrders.Select(order => new OrderGroupDto
+                {
+                    OrderId = order.FOrderId,
+                    OrderNo = order.FOrderNo,
+                    SellerName = order.FSeller?.FSellerName ?? $"賣家 {order.FSellerId}",  // ← FSellerName ✓
+
+                    Items = order.TMarketOrderDetails.Select(d => new OrderItemDto
+                    {
+                        ProductId = d.FProductId,
+                        ProductName = d.FProduct?.FProductName ?? string.Empty,
+                        ImageUrl = d.FProduct?.TMarketProductImages
+                                        .OrderBy(img => img.FSortOrder)
+                                        .FirstOrDefault()?.FImageUrl,
+                        Quantity = d.FQuantity,
+                        UnitPrice = d.FUnitPrice,
+                        LineTotal = d.FUnitPrice * d.FQuantity
+                    }).ToList()
+
+                }).ToList()
+            };
+
+            return Ok(dto);
         }
     }
-
-
 }
