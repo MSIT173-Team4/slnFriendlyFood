@@ -22,6 +22,8 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
             _config = config;
         }
 
+        private const string ImageBaseUrl = "https://localhost:7164";
+
         [HttpGet("Pay/{batchId}")]
         public async Task<IActionResult> Pay(long batchId)
         {
@@ -401,8 +403,10 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                         ProductId = d.FProductId,
                         ProductName = d.FProduct?.FProductName ?? string.Empty,
                         ImageUrl = d.FProduct?.TMarketProductImages
-                                        .OrderBy(img => img.FSortOrder)
-                                        .FirstOrDefault()?.FImageUrl,
+                                    .OrderBy(img => img.FSortOrder)
+                                    .FirstOrDefault()?.FImageUrl is string url
+                                    ? $"{ImageBaseUrl}{url}"
+                                    : null,
                         Quantity = d.FQuantity,
                         UnitPrice = d.FUnitPrice,
                         LineTotal = d.FUnitPrice * d.FQuantity
