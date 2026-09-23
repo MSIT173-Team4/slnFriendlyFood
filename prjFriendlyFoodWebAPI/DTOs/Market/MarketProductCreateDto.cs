@@ -2,7 +2,7 @@
 
 namespace prjFriendlyFoodWebAPI.DTOs.Market
 {
-    public class DTOMarketProductCreate
+    public class MarketProductCreateDto
     {
         [Required(ErrorMessage = "產品類別必填")]
         public string ProductsCategoryNo { get; set; }
@@ -27,5 +27,7 @@ namespace prjFriendlyFoodWebAPI.DTOs.Market
 
         // 改成接收實際檔案，允許多張，非必填
         public List<IFormFile>? Images { get; set; }
+
+        public byte ProductStatus { get; set; } = 1; // 預設上架
     }
 }
