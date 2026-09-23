@@ -5,70 +5,93 @@ using Microsoft.EntityFrameworkCore;
 using prjFriendlyFoodWebAPI.DTOs.Social;
 using prjFriendlyFoodWebAPI.Models;
 using prjFriendlyFoodWebAPI.Services.Social;
+using System.Security.Claims;
 
 namespace prjFriendlyFoodWebAPI.Controllers.Forum
 {
+    [ApiController]
+    [Route("api/[controller]")]
     public class PostController : ControllerBase
     {
-        [ApiController]
-        [Route("api/[controller]")]
-        public class PostsController : ControllerBase
+        private readonly IPostService _postService;
+
+        public PostController(IPostService postService)
         {
-            private readonly IPostService _postService;
+            _postService = postService;
+        }
+        private int GetCurrentUserId()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            return int.TryParse(userIdClaim, out int userId) ? userId : 0;
+        }
 
-            public PostsController(IPostService postService)
-            {
-                _postService = postService;
-            }
+        [HttpGet]
+        public async Task<ActionResult<PagedResultDto<PostResponseDto>>> GetPosts([FromQuery] PostQueryParameters queryParams)
+        {
+            int currentUserId = GetCurrentUserId();
+            var result = await _postService.GetPostsAsync(queryParams, currentUserId);
+            return Ok(result);
+        }
 
-            //使用者Id=1(暫定)
-            private int CurrentUserId => 1;
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetPost(int id)
+        {
+            int currentUserId = GetCurrentUserId();
+            var post = await _postService.GetPostByIdAsync(id, currentUserId);
+            if (post == null) return NotFound();
+            return Ok(post);
+        }
 
-            [HttpGet]
-            public async Task<IActionResult> GetPosts([FromQuery] string sortBy = "latest", [FromQuery] string? keyword = null)
-            {
-                var posts = await _postService.GetPostsAsync(sortBy, keyword, CurrentUserId);
-                return Ok(posts);
-            }
+        [HttpPost]
+        public async Task<IActionResult> CreatePost([FromBody] CreateOrUpdatePostDto dto)
+        {
+            int currentUserId = GetCurrentUserId();
+            if (currentUserId == 0) return Unauthorized("尚未登入");
 
-            [HttpGet("{id}")]
-            public async Task<IActionResult> GetPost(int id)
-            {
-                var post = await _postService.GetPostByIdAsync(id, CurrentUserId);
-                if (post == null) return NotFound();
-                return Ok(post);
-            }
+            var postId = await _postService.CreatePostAsync(dto, currentUserId);
+            return Ok(new { postId });
+        }
 
-            [HttpPost]
-            public async Task<IActionResult> CreatePost([FromBody] CreateOrUpdatePostDto dto)
-            {
-                var postId = await _postService.CreatePostAsync(dto, CurrentUserId);
-                return Ok(new { postId });
-            }
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdatePost(int id, [FromBody] CreateOrUpdatePostDto dto)
+        {
+            int currentUserId = GetCurrentUserId();
+            if (currentUserId == 0) return Unauthorized("尚未登入");
 
-            [HttpPut("{id}")]
-            public async Task<IActionResult> UpdatePost(int id, [FromBody] CreateOrUpdatePostDto dto)
-            {
-                var UpdateSuccess = await _postService.UpdatePostAsync(id, dto, CurrentUserId);
-                if (!UpdateSuccess) return BadRequest("未知錯誤");
-                return Ok();
-            }
+            var updateSuccess = await _postService.UpdatePostAsync(id, dto, currentUserId);
+            if (!updateSuccess) return NotFound();
+            return Ok();
+        }
 
-            [HttpDelete("{id}")]
-            public async Task<IActionResult> DeletePost(int id)
-            {
-                var DeleteSuccess = await _postService.DeletePostAsync(id, CurrentUserId);
-                if (!DeleteSuccess) return BadRequest("未知錯誤");
-                return Ok();
-            }
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeletePost(int id)
+        {
+            int currentUserId = GetCurrentUserId();
+            if (currentUserId == 0) return Unauthorized("尚未登入");
 
-            [HttpPost("{id}/like")]
-            public async Task<IActionResult> ToggleLike(int id)
-            {
-                var success = await _postService.ToggleLikePostAsync(id, CurrentUserId);
-                if (!success) return NotFound();
-                return Ok();
-            }
+            var deleteSuccess = await _postService.DeletePostAsync(id, currentUserId);
+            if (!deleteSuccess) return NotFound();
+            return Ok();
+        }
+
+        [HttpPost("bookmark")]
+        public async Task<ActionResult<PostBookmarkStatusDto>> ToggleBookmark([FromBody] BookmarkCreateDto dto)
+        {
+            int currentUserId = GetCurrentUserId();
+            if (currentUserId == 0) return Unauthorized("尚未登入");
+
+            var result = await _postService.ToggleBookmarkAsync(dto.PostId, currentUserId);
+            return Ok(result);
+        }
+
+        [HttpPost("{postId}/like")]
+        public async Task<ActionResult> ToggleLike(int postId)
+        {
+            int currentUserId = GetCurrentUserId();
+            if (currentUserId == 0) return Unauthorized("尚未登入");
+
+            bool isLiked = await _postService.ToggleLikeAsync(postId, currentUserId);
+            return Ok(new { postId, isLiked });
         }
     }
 }
