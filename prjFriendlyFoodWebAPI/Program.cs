@@ -77,11 +77,9 @@ if (app.Environment.IsDevelopment())
     }
 }
 
-
+app.UseCors("AllowAngularClient");
 app.UseStaticFiles();
 app.UseHttpsRedirection();
-app.UseCors("AllowAngularClient");
-app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
