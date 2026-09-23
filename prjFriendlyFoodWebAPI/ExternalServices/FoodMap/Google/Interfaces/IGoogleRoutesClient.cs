@@ -1,12 +1,14 @@
-﻿namespace prjFriendlyFoodWebAPI.ExternalServices.FoodMap.Google.Interfaces
+﻿using prjFriendlyFoodWebAPI.ExternalServices.FoodMap.Google.Models;
+
+namespace prjFriendlyFoodWebAPI.ExternalServices.FoodMap.Google.Interfaces
 {
     public interface IGoogleRoutesClient
     {
-        Task<GoogleRouteResult> ComputeRouteAsync(
-                List<(double Latitude, double Longitude)> waypoints,
-                CancellationToken cancellationToken = default
-            );
-            
+        Task<GoogleRouteResult?> ComputeRouteAsync(
+             List<(double Latitude, double Longitude)> waypoints,
+             GoogleTravelMode travelMode = GoogleTravelMode.Drive,
+             CancellationToken cancellationToken = default);
+
     }
 
     public class GoogleRouteResult

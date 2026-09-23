@@ -9,7 +9,7 @@
 
         public string FAddress { get; set; } = null!;
         public decimal FLatitude { get; set; }
-        public decimal Flongitude { get; set; }
+        public decimal FLongitude { get; set; }
 
         public int FSortOrder { get; set; }
         

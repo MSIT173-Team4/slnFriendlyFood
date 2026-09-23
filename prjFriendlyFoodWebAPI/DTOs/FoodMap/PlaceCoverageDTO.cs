@@ -7,6 +7,5 @@
         public double CoveragePercentage { get; set; }
         public List<string> MatchedItemNames { get; set; } = [];
         public bool IsRecommend { get; set; }
-
     }
 }

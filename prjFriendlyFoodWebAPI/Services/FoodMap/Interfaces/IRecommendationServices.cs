@@ -5,6 +5,12 @@ namespace prjFriendlyFoodWebAPI.Services.FoodMap.Interfaces
 {
     public interface IRecommendationServices
     {
-        Task<List<RecommendationDTO>> GetRecommendationDTOsAsync(int shoppinglistId); 
+        Task<List<PlaceCoverageDTO>> GetRecommendationsAsync(
+            int shoppingListId,
+            List<PlaceCandidateDTO> candidatePlaces,
+            CancellationToken cancellationToken = default);
+
+        Task<HashSet<int>> GetActiveRecommendedPlaceIdsAsync(
+                   CancellationToken cancellationToken = default);
     }
 }

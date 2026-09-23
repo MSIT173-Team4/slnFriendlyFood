@@ -83,15 +83,18 @@ builder.Services.AddHttpClient<
     });
 
 
-
+builder.Services.AddHttpClient<IGoogleRoutesClient, GoogleRoutesClient>();
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<EncodeServices>();
 builder.Services.AddScoped<UserServices>();
 builder.Services.AddScoped<TokenServices>();
+builder.Services.AddScoped<IShoppingListMappingService, ShoppingListMappingService>();
 builder.Services.AddScoped<IFoodMapService, PlaceService>();
 builder.Services.AddScoped<IRecommendationServices, RecommendationService>();
 builder.Services.AddScoped<ITripServices, TripServices>();
+builder.Services.AddScoped<ITripOptimizationService, TripOptimizationService>();
+builder.Services.AddScoped<ITripPlanningService, TripPlanningService>();
 builder.Services.AddDbContext<FriendlyFoodDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddRecipeModule();
