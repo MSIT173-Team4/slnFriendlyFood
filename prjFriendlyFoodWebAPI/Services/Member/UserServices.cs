@@ -11,8 +11,10 @@ namespace prjFriendlyFoodWebAPI.Services.Member
     public class UserServices
     {
         private readonly FriendlyFoodDbContext _db;
-        public UserServices(FriendlyFoodDbContext db)
+        private readonly IWebHostEnvironment _env;
+        public UserServices(FriendlyFoodDbContext db,IWebHostEnvironment env)
         {
+            _env = env;
             _db = db;
         }
         public async Task<bool> IsUsernameExists(string username)
@@ -111,6 +113,36 @@ namespace prjFriendlyFoodWebAPI.Services.Member
             await _db.SaveChangesAsync();
 
             return externalLogin;
+        }
+        public async Task<string> UploadImage(IFormFile img,int uid)
+        {
+            TUser user = _db.TUsers.FirstOrDefault(x => x.FId == uid);
+            if (user == null)
+            {
+                throw new Exception("找不到會員");
+            }
+
+            if (img == null || img.Length == 0)
+            {
+                throw new ArgumentException("圖片不能為空");
+            }
+            string fileName = $"{Guid.NewGuid()}.jpg";
+            string folderPath = Path.Combine(_env.WebRootPath,"images","Member");
+            string filePath = Path.Combine(
+                folderPath,
+                fileName
+            );
+            using (FileStream stream = new FileStream(filePath,FileMode.Create))
+            {
+                await img.CopyToAsync(stream);
+            }
+            string imageUrl = $"/images/Member/{fileName}";
+
+            user.FImage = imageUrl;
+
+            await _db.SaveChangesAsync();
+
+            return imageUrl;
         }
     }
 }

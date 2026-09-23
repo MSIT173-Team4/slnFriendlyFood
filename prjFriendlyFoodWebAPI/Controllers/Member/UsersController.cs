@@ -283,8 +283,11 @@ namespace prjFriendlyFoodWebAPI.Controllers.Member
                     {
                         await _us.AddExternalLogin(existingUser.FId, "Google", payload.Subject);
                         return await GoogleLoginSuccess(existingUser);
+                    }else if (existingUser == null)
+                    {
+
                     }
-                }
+                } 
                 return Ok(new
                 {
                     requiresRegistration = true,
@@ -323,6 +326,24 @@ namespace prjFriendlyFoodWebAPI.Controllers.Member
             return Ok(new
             {
                 message = "Google login success"
+            });
+        }
+        [Authorize]
+        [HttpPost("UploadProfileImage")]
+        public async Task<IActionResult> UploadProfileImage(IFormFile image)
+        {
+            int userId = int.Parse(
+                User.FindFirst(ClaimTypes.NameIdentifier)!.Value
+            );
+
+            string imageUrl = await _us.UploadImage(
+                image,
+                userId
+            );
+
+            return Ok(new
+            {
+                image = imageUrl
             });
         }
     }

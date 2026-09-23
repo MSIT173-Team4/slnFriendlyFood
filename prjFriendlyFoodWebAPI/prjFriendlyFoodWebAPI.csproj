@@ -30,7 +30,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="wwwroot\image\" />
+    <Folder Include="wwwroot\image\Member\" />
     <Folder Include="wwwroot\ProductImageUploads\" />
   </ItemGroup>
 
