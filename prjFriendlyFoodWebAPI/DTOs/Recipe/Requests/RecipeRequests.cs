@@ -139,3 +139,28 @@ public sealed class UserRecipeActionRequestDto
     [Range(1, int.MaxValue)]
     public int UserId { get; init; }
 }
+
+public sealed class SaveRecipeShoppingListRequestDto
+{
+    [Required, StringLength(100)]
+    public string ListName { get; init; } = "我的料理採購清單";
+
+    public IReadOnlyCollection<SaveRecipeShoppingListItemRequestDto> Items { get; init; } = [];
+}
+
+public sealed class SaveRecipeShoppingListItemRequestDto
+{
+    [Range(1, int.MaxValue)]
+    public int IngredientId { get; init; }
+
+    [Range(0.01, 99999)]
+    public decimal Quantity { get; init; }
+
+    [Required, StringLength(20)]
+    public string Unit { get; init; } = string.Empty;
+
+    public bool IsPurchased { get; init; }
+
+    [StringLength(150)]
+    public string? Note { get; init; }
+}
