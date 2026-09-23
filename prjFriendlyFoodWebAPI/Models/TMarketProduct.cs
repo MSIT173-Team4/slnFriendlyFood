@@ -31,7 +31,7 @@ public partial class TMarketProduct
     /// <summary>
     /// 產品名稱
     /// </summary>
-    public string FProductname { get; set; } = null!;
+    public string FProductName { get; set; } = null!;
 
     /// <summary>
     /// 產品描述

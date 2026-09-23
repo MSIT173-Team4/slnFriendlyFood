@@ -60,7 +60,8 @@ public class TripServices : ITripServices
             })
             .FirstOrDefaultAsync();
     }
-    public async Task<TripDTO> CreatTripAsync(TripDTO tripDTO)
+
+    public async Task<TripDTO> CreateTripAsync(CreateTripRequestDTO tripDTO)
     {
         var trip = new TFoodMapTrip
         {
@@ -73,15 +74,15 @@ public class TripServices : ITripServices
         {
             var restaurantExists =
                 await _context.TFoodMapPlaces
-                    .AnyAsync(r =>r.FPlaceId ==place.FPlaceId);
+                    .AnyAsync(r =>r.FPlaceId ==place.FPlaceID);
             if (!restaurantExists)
             {
-                throw new ArgumentException($"找不到店家 ID：{place.FPlaceId}");
+                throw new ArgumentException($"找不到店家 ID：{place.FPlaceID}");
             }
 
             trip.TFoodMapTripPlaces.Add(new TFoodMapTripPlace
                 {
-                    FPlaceId =place.FPlaceId,
+                    FPlaceId =place.FPlaceID,
                     FSortOrder =place.FSortOrder
                 });
         }

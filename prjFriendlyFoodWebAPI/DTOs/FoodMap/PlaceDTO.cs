@@ -5,7 +5,7 @@
         public int FPlaceId { get; set; }
         public string? FGooglePlaceId { get; set; }
 
-
+        public int? FPlaceCategoryId { get; set; }
         public required string FName { get; set; }
         public required string FAddress { get; set; }
 

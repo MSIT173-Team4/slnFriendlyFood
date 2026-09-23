@@ -42,5 +42,20 @@ namespace prjFriendlyFoodWebAPI.Controllers.FoodMap
 
             return Ok(trip);
         }
+        [HttpPost]
+        public async Task<ActionResult<TripDTO>> CreateTrip([FromBody] CreateTripRequestDTO tripDTO)
+        {
+            try
+            {
+                var trip = await _tripServices.CreateTripAsync(tripDTO);
+                return Ok(trip);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+
     }
 }

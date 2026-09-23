@@ -9,6 +9,7 @@ namespace prjFriendlyFoodWebAPI.Services.FoodMap.Interfaces
 
         Task<NearbyResponseDTO> GetNearbyPlacesAsync(NearbyRequestDTO request, CancellationToken cancellationToken = default);
 
+        Task<int>ResolvePlaceAsync(ResolvePlaceRequestDTO request, CancellationToken cancellationToken = default);
     }
 
 

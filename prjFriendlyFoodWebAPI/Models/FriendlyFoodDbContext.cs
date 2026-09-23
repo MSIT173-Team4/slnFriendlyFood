@@ -6,9 +6,7 @@ namespace prjFriendlyFoodWebAPI.Models;
 
 public partial class FriendlyFoodDbContext : DbContext
 {
-    public FriendlyFoodDbContext()
-    {
-    }
+    
 
     public FriendlyFoodDbContext(DbContextOptions<FriendlyFoodDbContext> options)
         : base(options)
@@ -405,7 +403,6 @@ public partial class FriendlyFoodDbContext : DbContext
 
             entity.HasOne(d => d.FPlaceCategory).WithMany(p => p.TFoodMapPlaces)
                 .HasForeignKey(d => d.FPlaceCategoryId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_tFoodMapPlace_fPlaceCategory");
         });
 
@@ -614,7 +611,6 @@ public partial class FriendlyFoodDbContext : DbContext
 
             entity.HasOne(d => d.FUser).WithMany(p => p.TFoodMapTrips)
                 .HasForeignKey(d => d.FUserId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_FoodMapTrip_User");
         });
 
@@ -1029,6 +1025,10 @@ public partial class FriendlyFoodDbContext : DbContext
             entity.Property(e => e.FProductDate)
                 .HasComment("上架日期")
                 .HasColumnName("fProductDate");
+            entity.Property(e => e.FProductName)
+                .HasMaxLength(100)
+                .HasComment("產品名稱")
+                .HasColumnName("fProductName");
             entity.Property(e => e.FProductNo)
                 .HasMaxLength(20)
                 .IsUnicode(false)
@@ -1038,10 +1038,6 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasDefaultValue((byte)1)
                 .HasComment("商品狀態；0 審核中 / 1 架上商品 / 2 已售完 / 3 未上架 / 4 已違規")
                 .HasColumnName("fProductStatus");
-            entity.Property(e => e.FProductname)
-                .HasMaxLength(100)
-                .HasComment("產品名稱")
-                .HasColumnName("fProductname");
             entity.Property(e => e.FProductsCategoryNo)
                 .HasMaxLength(50)
                 .IsUnicode(false)

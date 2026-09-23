@@ -227,6 +227,49 @@ namespace prjFriendlyFoodWebAPI.Services.FoodMap
             };
         }
 
+        public async Task<int> ResolvePlaceAsync(ResolvePlaceRequestDTO request, CancellationToken cancellationToken = default)
+        {
+
+
+            var existing = await _context.TFoodMapPlaces.FirstOrDefaultAsync(
+            p => p.FGooglePlaceId == request.FGooglePlaceId,
+            cancellationToken);
+
+            if (existing is not null)
+            {
+                return existing.FPlaceId;
+            }
+
+            var detail = await _googlePlacesClient.GetPlaceDetailsAsync(
+                request.FGooglePlaceId, cancellationToken);
+
+            if (detail is null)
+            {
+                throw new ArgumentException($"Google 查無此地點：{request.FGooglePlaceId}");
+            }
+
+            var place = new TFoodMapPlace
+            {
+                FGooglePlaceId = detail.Id,
+                //FPlaceCategoryId = request.FPlaceCategoryId,
+                FName = detail.DisplayName?.Text ?? string.Empty,
+                FAddress = detail.FormattedAddress ?? string.Empty,
+                FLatitude = (decimal)(detail.Location?.Latitude ?? 0),
+                FLongitude = (decimal)(detail.Location?.Longitude ?? 0),
+                FPhone = detail.NationalPhoneNumber,
+                FGoogleRating = detail.Rating.HasValue ? (decimal)detail.Rating.Value : null,
+                FGoogleReviewCount = detail.UserRatingCount,
+                FBusinessStatus = detail.BusinessStatus,
+                FIsActive = true,
+                FSyncedAt = DateTime.UtcNow,
+                FCreatedTime = DateTime.UtcNow
+            };
+
+            _context.TFoodMapPlaces.Add(place);
+            await _context.SaveChangesAsync(cancellationToken);
+
+            return place.FPlaceId;
+        }
     }
 }
 

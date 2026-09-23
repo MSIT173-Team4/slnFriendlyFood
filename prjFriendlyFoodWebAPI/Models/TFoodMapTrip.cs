@@ -7,7 +7,7 @@ public partial class TFoodMapTrip
 {
     public int FTripId { get; set; }
 
-    public int FUserId { get; set; }
+    public int? FUserId { get; set; }
 
     public string FTripName { get; set; } = null!;
 
@@ -23,7 +23,7 @@ public partial class TFoodMapTrip
 
     public DateTime? FUpdatedTime { get; set; }
 
-    public virtual TUser FUser { get; set; } = null!;
+    public virtual TUser? FUser { get; set; }
 
     public virtual ICollection<TFoodMapTripPlace> TFoodMapTripPlaces { get; set; } = new List<TFoodMapTripPlace>();
 

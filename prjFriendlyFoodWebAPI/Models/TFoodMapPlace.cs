@@ -9,7 +9,7 @@ public partial class TFoodMapPlace
 
     public string? FGooglePlaceId { get; set; }
 
-    public int FPlaceCategoryId { get; set; }
+    public int? FPlaceCategoryId { get; set; }
 
     public string FName { get; set; } = null!;
 
@@ -39,7 +39,7 @@ public partial class TFoodMapPlace
 
     public bool? FIsRecommend { get; set; }
 
-    public virtual TFoodMapPlaceCategory FPlaceCategory { get; set; } = null!;
+    public virtual TFoodMapPlaceCategory? FPlaceCategory { get; set; }
 
     public virtual ICollection<TFoodMapFavorite> TFoodMapFavorites { get; set; } = new List<TFoodMapFavorite>();
 

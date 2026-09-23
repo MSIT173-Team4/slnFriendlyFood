@@ -8,6 +8,6 @@ namespace prjFriendlyFoodWebAPI.Services.FoodMap.Interfaces
 
         Task<TripDTO?> GetTripByIdAsync(long tripId);
 
-        Task<TripDTO> CreatTripAsync(TripDTO tripDTO);
+        Task<TripDTO> CreateTripAsync(CreateTripRequestDTO tripDTO);
     }
 }
