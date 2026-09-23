@@ -1,14 +1,15 @@
 using Microsoft.EntityFrameworkCore;
 using prjFriendlyFoodWebAPI.Models;
+using prjFriendlyFoodWebAPI.Services.Member;
 
 namespace prjFriendlyFoodWebAPI.Infrastructure.Seeding.Recipe;
 
 public sealed class RecipeDevelopmentDataSeeder(
     FriendlyFoodDbContext context,
-    ILogger<RecipeDevelopmentDataSeeder> logger) : IRecipeDataSeeder
+    ILogger<RecipeDevelopmentDataSeeder> logger,
+    EncodeServices passwordEncoder) : IRecipeDataSeeder
 {
-    private const string DemoOwnerUsername = "recipe.demo";
-    private const string DemoTesterUsername = "recipe.tester";
+    private const string DemoPassword = "DemoOnly2026!";
 
     public async Task SeedAsync(CancellationToken cancellationToken = default)
     {
@@ -22,12 +23,15 @@ public sealed class RecipeDevelopmentDataSeeder(
             var tags = await EnsureTagsAsync(cancellationToken);
 
             await EnsureRecipesAsync(
-                users.Owner.FId,
+                users,
                 categories,
                 ingredients,
                 tags,
                 cancellationToken);
-            await EnsurePantryAsync(users, ingredients, cancellationToken);
+            await EnsurePantryAsync(
+                users[RecipeSeedDefinitions.DemoTesterUsername],
+                ingredients,
+                cancellationToken);
             await EnsureEngagementAsync(users, cancellationToken);
 
             await context.SaveChangesAsync(cancellationToken);
@@ -41,29 +45,34 @@ public sealed class RecipeDevelopmentDataSeeder(
         }
     }
 
-    private async Task<(TUser Owner, TUser Tester)> EnsureUsersAsync(
+    private async Task<Dictionary<string, TUser>> EnsureUsersAsync(
         CancellationToken cancellationToken)
     {
-        var owner = await context.TUsers
-            .FirstOrDefaultAsync(user => user.FUsername == DemoOwnerUsername, cancellationToken);
-        var tester = await context.TUsers
-            .FirstOrDefaultAsync(user => user.FUsername == DemoTesterUsername, cancellationToken);
+        var usernames = RecipeSeedDefinitions.Users.Select(user => user.Username).ToArray();
+        var existingUsers = await context.TUsers
+            .Where(user => usernames.Contains(user.FUsername))
+            .ToListAsync(cancellationToken);
+        var users = existingUsers.ToDictionary(user => user.FUsername);
 
-        owner ??= CreateUser(DemoOwnerUsername, "recipe.demo@friendlyfood.local", "A123456789");
-        tester ??= CreateUser(DemoTesterUsername, "recipe.tester@friendlyfood.local", "B123456789");
-
-        if (owner.FId == 0)
+        foreach (var definition in RecipeSeedDefinitions.Users)
         {
-            context.TUsers.Add(owner);
-        }
+            if (!users.TryGetValue(definition.Username, out var user))
+            {
+                var encodedPassword = await passwordEncoder.HashPassword(DemoPassword);
+                user = CreateUser(definition, encodedPassword);
+                users[definition.Username] = user;
+                context.TUsers.Add(user);
+            }
+            else if (user.FPassword == DemoPassword)
+            {
+                user.FPassword = await passwordEncoder.HashPassword(DemoPassword);
+            }
 
-        if (tester.FId == 0)
-        {
-            context.TUsers.Add(tester);
+            user.FIsActive = definition.IsActive;
         }
 
         await context.SaveChangesAsync(cancellationToken);
-        return (owner, tester);
+        return users;
     }
 
     private async Task<Dictionary<string, TRecipeCategory>> EnsureCategoriesAsync(
@@ -155,7 +164,7 @@ public sealed class RecipeDevelopmentDataSeeder(
     }
 
     private async Task EnsureRecipesAsync(
-        int ownerId,
+        IReadOnlyDictionary<string, TUser> users,
         IReadOnlyDictionary<string, TRecipeCategory> categories,
         IReadOnlyDictionary<string, TIngredient> ingredients,
         IReadOnlyDictionary<string, TRecipeTag> tags,
@@ -176,17 +185,19 @@ public sealed class RecipeDevelopmentDataSeeder(
                 context.TRecipes.Add(recipe);
             }
 
-            recipe.FUserId = ownerId;
+            recipe.FUserId = users[definition.AuthorUsername].FId;
             recipe.FCategoryId = categories[definition.Category].FCategoryId;
             recipe.FDescription = definition.Description;
             recipe.FCoverImageUrl = definition.CoverImageUrl;
+            recipe.FYtVideoId = definition.YouTubeVideoId;
             recipe.FAiPrepTips = $"資料來源：{definition.SourceName}｜{definition.SourceUrl}。{definition.SafetyNote}";
             recipe.FIsAiGenerated = definition.IsAiGenerated;
             recipe.FDefaultServings = definition.Servings;
             recipe.FCookingMinutes = definition.CookingMinutes;
             recipe.FTotalCalories = definition.Calories;
-            recipe.FViews = Math.Max(recipe.FViews, 120);
+            recipe.FViews = Math.Max(recipe.FViews, definition.SeedViewCount);
             recipe.FStatus = 1;
+            recipe.FCreatedAt = DateTime.UtcNow.AddDays(-definition.PublishedDaysAgo);
             recipe.FUpdatedAt = DateTime.UtcNow;
             await context.SaveChangesAsync(cancellationToken);
 
@@ -233,7 +244,7 @@ public sealed class RecipeDevelopmentDataSeeder(
     }
 
     private async Task EnsurePantryAsync(
-        (TUser Owner, TUser Tester) users,
+        TUser pantryOwner,
         IReadOnlyDictionary<string, TIngredient> ingredients,
         CancellationToken cancellationToken)
     {
@@ -251,7 +262,7 @@ public sealed class RecipeDevelopmentDataSeeder(
         {
             var ingredientId = ingredients[definition.Item1].FId;
             var exists = await context.TRecipeUserPantries.AnyAsync(
-                item => item.FUserId == users.Tester.FId && item.FIngredientId == ingredientId,
+                item => item.FUserId == pantryOwner.FId && item.FIngredientId == ingredientId,
                 cancellationToken);
 
             if (exists)
@@ -261,7 +272,7 @@ public sealed class RecipeDevelopmentDataSeeder(
 
             context.TRecipeUserPantries.Add(new TRecipeUserPantry
             {
-                FUserId = users.Tester.FId,
+                FUserId = pantryOwner.FId,
                 FIngredientId = ingredientId,
                 FAmount = definition.Item2,
                 FUnit = definition.Item3,
@@ -274,70 +285,98 @@ public sealed class RecipeDevelopmentDataSeeder(
     }
 
     private async Task EnsureEngagementAsync(
-        (TUser Owner, TUser Tester) users,
+        IReadOnlyDictionary<string, TUser> users,
         CancellationToken cancellationToken)
     {
+        var recipeTitles = RecipeSeedDefinitions.Recipes.Select(seed => seed.Title).ToArray();
         var recipes = await context.TRecipes
-            .Where(item => RecipeSeedDefinitions.Recipes.Select(seed => seed.Title).Contains(item.FTitle))
-            .OrderBy(item => item.FRecipeId)
+            .Where(item => recipeTitles.Contains(item.FTitle))
             .ToListAsync(cancellationToken);
+        var recipesByTitle = recipes.ToDictionary(recipe => recipe.FTitle);
+        var recipeIds = recipes.Select(recipe => recipe.FRecipeId).ToArray();
+        var engagementUsers = users.Values
+            .Where(user => user.FUsername != RecipeSeedDefinitions.DemoOwnerUsername)
+            .OrderBy(user => user.FUsername)
+            .ToArray();
+        var existingLikeKeys = (await context.TRecipeLikes
+                .Where(item => recipeIds.Contains(item.FRecipeId))
+                .Select(item => new { item.FRecipeId, item.FUserId })
+                .ToListAsync(cancellationToken))
+            .Select(item => (item.FRecipeId, item.FUserId))
+            .ToHashSet();
+        var existingFavoriteKeys = (await context.TRecipeFavorites
+                .Where(item => recipeIds.Contains(item.FRecipeId))
+                .Select(item => new { item.FRecipeId, item.FUserId })
+                .ToListAsync(cancellationToken))
+            .Select(item => (item.FRecipeId, item.FUserId))
+            .ToHashSet();
 
-        foreach (var recipe in recipes.Take(5))
+        foreach (var definition in RecipeSeedDefinitions.Recipes)
         {
-            if (!await context.TRecipeLikes.AnyAsync(
-                    item => item.FRecipeId == recipe.FRecipeId && item.FUserId == users.Tester.FId,
-                    cancellationToken))
+            var recipe = recipesByTitle[definition.Title];
+            var eligibleUsers = engagementUsers
+                .Where(user => user.FId != recipe.FUserId)
+                .ToArray();
+
+            foreach (var user in eligibleUsers.Take(definition.SeedLikeCount))
             {
-                context.TRecipeLikes.Add(new TRecipeLike
+                if (existingLikeKeys.Add((recipe.FRecipeId, user.FId)))
                 {
-                    FRecipeId = recipe.FRecipeId,
-                    FUserId = users.Tester.FId
-                });
+                    context.TRecipeLikes.Add(new TRecipeLike
+                    {
+                        FRecipeId = recipe.FRecipeId,
+                        FUserId = user.FId
+                    });
+                }
             }
-        }
 
-        foreach (var recipe in recipes.Take(3))
-        {
-            if (!await context.TRecipeFavorites.AnyAsync(
-                    item => item.FRecipeId == recipe.FRecipeId && item.FUserId == users.Tester.FId,
-                    cancellationToken))
+            foreach (var user in eligibleUsers.Take(definition.SeedFavoriteCount))
             {
-                context.TRecipeFavorites.Add(new TRecipeFavorite
+                if (existingFavoriteKeys.Add((recipe.FRecipeId, user.FId)))
                 {
-                    FRecipeId = recipe.FRecipeId,
-                    FUserId = users.Tester.FId
-                });
+                    context.TRecipeFavorites.Add(new TRecipeFavorite
+                    {
+                        FRecipeId = recipe.FRecipeId,
+                        FUserId = user.FId
+                    });
+                }
             }
         }
 
         await context.SaveChangesAsync(cancellationToken);
 
+        var likeCounts = await context.TRecipeLikes
+            .Where(item => recipeIds.Contains(item.FRecipeId))
+            .GroupBy(item => item.FRecipeId)
+            .Select(group => new { RecipeId = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(item => item.RecipeId, item => item.Count, cancellationToken);
+        var favoriteCounts = await context.TRecipeFavorites
+            .Where(item => recipeIds.Contains(item.FRecipeId))
+            .GroupBy(item => item.FRecipeId)
+            .Select(group => new { RecipeId = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(item => item.RecipeId, item => item.Count, cancellationToken);
+
         foreach (var recipe in recipes)
         {
-            recipe.FLikes = await context.TRecipeLikes.CountAsync(
-                item => item.FRecipeId == recipe.FRecipeId,
-                cancellationToken);
-            recipe.FFavorites = await context.TRecipeFavorites.CountAsync(
-                item => item.FRecipeId == recipe.FRecipeId,
-                cancellationToken);
+            recipe.FLikes = likeCounts.GetValueOrDefault(recipe.FRecipeId);
+            recipe.FFavorites = favoriteCounts.GetValueOrDefault(recipe.FRecipeId);
         }
     }
 
     private static TUser CreateUser(
-        string username,
-        string email,
-        string idNumber)
+        RecipeUserSeedDefinition definition,
+        string encodedPassword)
     {
         return new TUser
         {
-            FUsername = username,
-            FPassword = "DemoOnly2026!",
-            FEmail = email,
+            FUsername = definition.Username,
+            FPassword = encodedPassword,
+            FEmail = definition.Email,
             FPhone = "0900000000",
-            FIdNum = idNumber,
+            FIdNum = definition.IdNumber,
             FAddress = "Taipei",
             FImage = string.Empty,
-            FIsActive = true,
+            FIsActive = definition.IsActive,
             FIsAdmin = false,
             FCreateTime = DateTime.UtcNow
         };

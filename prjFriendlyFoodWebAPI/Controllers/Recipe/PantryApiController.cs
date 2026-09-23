@@ -20,7 +20,7 @@ public sealed class PantryApiController(
     [HttpPost("diagnose-image")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(10 * 1024 * 1024)]
-    public async Task<ActionResult<ApiResponse<PantryAiDiagnosticDto>>> DiagnoseImage(
+    public async Task<ActionResult<ApiResponse<IReadOnlyCollection<PantryAiDiagnosticDto>>>> DiagnoseImage(
         [FromForm] IFormFile? file,
         CancellationToken cancellationToken)
     {
@@ -28,10 +28,10 @@ public sealed class PantryApiController(
         if (validationMessage is not null)
         {
             return FromServiceResult(
-                ServiceResult<PantryAiDiagnosticDto>.Validation(
+                ServiceResult<IReadOnlyCollection<PantryAiDiagnosticDto>>.Validation(
                     validationMessage));
         }
-
+        
         var result = await pantryAiClient.DiagnoseImageAsync(file!, cancellationToken);
         return FromServiceResult(result);
     }
