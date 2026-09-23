@@ -81,6 +81,8 @@ public partial class FriendlyFoodDbContext : DbContext
 
     public virtual DbSet<TPostBlockTable> TPostBlockTables { get; set; }
 
+    public virtual DbSet<TPostBookmark> TPostBookmarks { get; set; }
+
     public virtual DbSet<TPostLike> TPostLikes { get; set; }
 
     public virtual DbSet<TPostTable> TPostTables { get; set; }
@@ -103,6 +105,8 @@ public partial class FriendlyFoodDbContext : DbContext
 
     public virtual DbSet<TRecipeUserPantry> TRecipeUserPantries { get; set; }
 
+    public virtual DbSet<TRefreshToken> TRefreshTokens { get; set; }
+
     public virtual DbSet<TSeller> TSellers { get; set; }
 
     public virtual DbSet<TSortTable> TSortTables { get; set; }
@@ -115,7 +119,7 @@ public partial class FriendlyFoodDbContext : DbContext
     {
         modelBuilder.Entity<TApply>(entity =>
         {
-            entity.HasKey(e => e.FId).HasName("PK__tApply__D9F8227C89416337");
+            entity.HasKey(e => e.FId).HasName("PK__tApply__D9F8227C4052EB5F");
 
             entity.ToTable("tApply");
 
@@ -160,7 +164,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TApplyStatus>(entity =>
         {
-            entity.HasKey(e => e.FId).HasName("PK__tApplySt__D9F8227CEEADF9F1");
+            entity.HasKey(e => e.FId).HasName("PK__tApplySt__D9F8227CF2690969");
 
             entity.ToTable("tApplyStatus");
 
@@ -208,7 +212,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TConversationMember>(entity =>
         {
-            entity.HasKey(e => new { e.FConversationId, e.FUserId }).HasName("PK__tConvers__8DB173362B53D891");
+            entity.HasKey(e => new { e.FConversationId, e.FUserId }).HasName("PK__tConvers__8DB17336346F0D15");
 
             entity.ToTable("tConversationMember");
 
@@ -222,12 +226,12 @@ public partial class FriendlyFoodDbContext : DbContext
             entity.HasOne(d => d.FConversation).WithMany(p => p.TConversationMembers)
                 .HasForeignKey(d => d.FConversationId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__tConversa__fConv__57DD0BE4");
+                .HasConstraintName("FK__tConversa__fConv__6AEFE058");
 
             entity.HasOne(d => d.FUser).WithMany(p => p.TConversationMembers)
                 .HasForeignKey(d => d.FUserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__tConversa__fUser__4E1E9780");
+                .HasConstraintName("FK__tConversa__fUser__6BE40491");
         });
 
         modelBuilder.Entity<TConversationMessagesTable>(entity =>
@@ -1362,7 +1366,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TPostBlockTable>(entity =>
         {
-            entity.HasKey(e => e.FPostBlockId).HasName("PK__tPostBlo__92BD60D697CC495B");
+            entity.HasKey(e => e.FPostBlockId).HasName("PK__tPostBlo__92BD60D6C93952B6");
 
             entity.ToTable("tPostBlockTable");
 
@@ -1385,6 +1389,31 @@ public partial class FriendlyFoodDbContext : DbContext
             entity.HasOne(d => d.FPost).WithMany(p => p.TPostBlockTables)
                 .HasForeignKey(d => d.FPostId)
                 .HasConstraintName("FK_tPostBlockTable_tPostTable");
+        });
+
+        modelBuilder.Entity<TPostBookmark>(entity =>
+        {
+            entity.HasKey(e => e.FBookmarkId).HasName("PK__tPostBoo__0E20EC4FBDBC04AF");
+
+            entity.ToTable("tPostBookmarks");
+
+            entity.HasIndex(e => new { e.FUserId, e.FPostId }, "UQ_tPostBookmarks_User_Post").IsUnique();
+
+            entity.Property(e => e.FBookmarkId).HasColumnName("fBookmark_Id");
+            entity.Property(e => e.FBookmarkDate)
+                .HasPrecision(0)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnName("fBookmark_Date");
+            entity.Property(e => e.FPostId).HasColumnName("fPostID");
+            entity.Property(e => e.FUserId).HasColumnName("fUserId");
+
+            entity.HasOne(d => d.FPost).WithMany(p => p.TPostBookmarks)
+                .HasForeignKey(d => d.FPostId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+
+            entity.HasOne(d => d.FUser).WithMany(p => p.TPostBookmarks)
+                .HasForeignKey(d => d.FUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
         });
 
         modelBuilder.Entity<TPostLike>(entity =>
@@ -1638,9 +1667,37 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasConstraintName("FK_RecipeUserPantry_User");
         });
 
+        modelBuilder.Entity<TRefreshToken>(entity =>
+        {
+            entity.HasKey(e => e.FId).HasName("PK__tRefresh__D9F8227C90E68987");
+
+            entity.ToTable("tRefreshToken");
+
+            entity.Property(e => e.FId).HasColumnName("fId");
+            entity.Property(e => e.FCreate)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime")
+                .HasColumnName("fCreate");
+            entity.Property(e => e.FExpired)
+                .HasColumnType("datetime")
+                .HasColumnName("fExpired");
+            entity.Property(e => e.FRevoke).HasColumnName("fRevoke");
+            entity.Property(e => e.FToken)
+                .IsRequired()
+                .HasMaxLength(255)
+                .IsUnicode(false)
+                .HasColumnName("fToken");
+            entity.Property(e => e.FUserId).HasColumnName("fUserId");
+
+            entity.HasOne(d => d.FUser).WithMany(p => p.TRefreshTokens)
+                .HasForeignKey(d => d.FUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_RefreshToken_User");
+        });
+
         modelBuilder.Entity<TSeller>(entity =>
         {
-            entity.HasKey(e => e.FId).HasName("PK__tSeller__D9F8227C08DBAF71");
+            entity.HasKey(e => e.FId).HasName("PK__tSeller__D9F8227CB5BCDB50");
 
             entity.ToTable("tSeller");
 
@@ -1686,7 +1743,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TStatus>(entity =>
         {
-            entity.HasKey(e => e.FId).HasName("PK__tStatus__D9F8227C1A5B5342");
+            entity.HasKey(e => e.FId).HasName("PK__tStatus__D9F8227C465BA526");
 
             entity.ToTable("tStatus");
 
@@ -1706,7 +1763,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
             entity.ToTable("tUser");
 
-            entity.HasIndex(e => e.FUsername, "UQ__tmp_ms_x__A8F6564A1F436BA9").IsUnique();
+            entity.HasIndex(e => e.FUsername, "UQ__tUser__A8F6564A7C62C605").IsUnique();
 
             entity.Property(e => e.FId).HasColumnName("fId");
             entity.Property(e => e.FAddress)

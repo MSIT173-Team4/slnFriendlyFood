@@ -207,7 +207,11 @@ public sealed class RecipeRecommendationService(FriendlyFoodDbContext context)
             {
                 Recipe = recipe,
                 CategoryName = category.FCategoryName,
-                AuthorName = user.FUsername
+                AuthorId = user.FId,
+                AuthorName = user.FUsername,
+                AuthorImageUrl = user.FImage,
+                AuthorRecipeCount = context.TRecipes.Count(item =>
+                    item.FUserId == user.FId && item.FStatus == 1)
             }).ToListAsync(cancellationToken);
 
         var recipeIds = rows.Select(row => row.Recipe.FRecipeId).ToArray();
@@ -248,7 +252,10 @@ public sealed class RecipeRecommendationService(FriendlyFoodDbContext context)
                     recipe.FFavorites,
                     recipe.FIsAiGenerated,
                     row.CategoryName,
+                    row.AuthorId,
                     row.AuthorName,
+                    row.AuthorImageUrl,
+                    row.AuthorRecipeCount,
                     tagsByRecipeId.GetValueOrDefault(recipe.FRecipeId, []));
 
                 return new TrendingRecipeDto(summary, Math.Round((decimal)timeDecayScore, 4));

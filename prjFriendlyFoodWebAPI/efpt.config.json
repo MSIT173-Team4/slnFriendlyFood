@@ -155,6 +155,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[tPostBookmarks]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[tPostLike]",
          "ObjectType": 0
       },
@@ -196,6 +200,10 @@
       },
       {
          "Name": "[dbo].[tRecipeUserPantry]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tRefreshToken]",
          "ObjectType": 0
       },
       {

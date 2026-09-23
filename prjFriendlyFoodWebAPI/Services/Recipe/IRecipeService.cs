@@ -10,6 +10,7 @@ public interface IRecipeService
         string? search,
         int? categoryId,
         string? tag,
+        int? userId,
         CancellationToken cancellationToken);
 
     Task<ServiceResult<RecipeDetailDto>> GetRecipeAsync(
@@ -35,4 +36,19 @@ public interface IRecipeService
         CancellationToken cancellationToken);
 
     Task<ServiceResult<RecipeMetadataDto>> GetMetadataAsync(CancellationToken cancellationToken);
+
+    Task<ServiceResult<RecipeAvailabilityDto>> GetAvailabilityAsync(
+        int recipeId,
+        int userId,
+        int targetServings,
+        CancellationToken cancellationToken);
+
+    Task<ServiceResult<RecipeShoppingListDto>> GetShoppingListAsync(
+        int userId,
+        CancellationToken cancellationToken);
+
+    Task<ServiceResult<RecipeShoppingListDto>> SaveShoppingListAsync(
+        int userId,
+        SaveRecipeShoppingListRequestDto request,
+        CancellationToken cancellationToken);
 }
