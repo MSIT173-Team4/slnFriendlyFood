@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using prjFriendlyFoodWebAPI.DTOs.Market;
 using prjFriendlyFoodWebAPI.Models;
+using static Microsoft.Extensions.Logging.EventSource.LoggingEventSource;
 
 namespace prjFriendlyFoodWebAPI.Controllers.Market
 {
@@ -53,43 +54,6 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
             return Ok(products);
         }
 
-        // 賣家後台：依 status 篩選，不傳就拿自己所有商品
-        [HttpGet("seller")]
-        public async Task<IActionResult> GetSellerProducts([FromQuery] byte? status, [FromQuery] int page = 1)
-        {
-            // 之後換成從 Token 拿 sellerId
-            var query = _context.TMarketProducts
-                .Where(p => p.FSellerId == 3)
-                .AsQueryable();
-
-            // 0=審核中 / 1=架上商品 / 2=已售完 / 3=未上架 / 4=已違規
-            if (status.HasValue)
-                query = query.Where(p => p.FProductStatus == status.Value);
-
-            var products = await query
-                .Skip((page - 1) * 10)
-                .Take(10)
-                .Select(p => new MarketPublicProductListDto
-                {
-                    ProductId = p.FProductId,
-                    ProductName = p.FProductName,
-                    Description = p.FDescription,
-                    Stock = p.FStock,
-                    Price = p.FPrice,
-                    BrandOrOrigin = p.FBrandOrOrigin,
-                    ManufacturingDate = p.FManufacturingDate,
-                    ExpirationDate = p.FExpirationDate,
-                    ProductStatus = p.FProductStatus,
-                    ImageUrls = p.TMarketProductImages
-             .OrderBy(img => img.FSortOrder)
-             .Select(img => ImageBaseUrl + img.FImageUrl)
-             .ToList()
-                })
-                .ToListAsync();
-
-            return Ok(products);
-        }
-
         [HttpPost]
         [DisableRequestSizeLimit]
         [RequestFormLimits(MultipartBodyLengthLimit = 52428800)] // 50MB
@@ -113,7 +77,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                 FDescription = dto.Description,
                 FManufacturingDate = dto.ManufacturingDate,
                 FExpirationDate = dto.ExpirationDate,
-                FProductStatus = 1,
+                FProductStatus = dto.ProductStatus,
                 FReportCount = 0,
             };
 
@@ -251,7 +215,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         }
 
         // GET /api/MarketProduct/{id}
-        [HttpGet("{id}")]
+        [HttpGet("{id:int}")]
         public async Task<IActionResult> GetProductDetail(int id)
         {
             var product = await _context.TMarketProducts
@@ -294,7 +258,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         }
 
         // GET /api/MarketProduct/{id}/reviews?page=1&pageSize=3
-        [HttpGet("{id}/reviews")]
+        [HttpGet("{id:int}/reviews")]
         public async Task<IActionResult> GetProductReviews(int id, [FromQuery] int page = 1, [FromQuery] int pageSize = 3)
         {
             var query = _context.TMarketProductReviews
@@ -328,7 +292,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         }
 
         // GET /api/MarketProduct/{id}/recipes
-        [HttpGet("{id}/recipes")]
+        [HttpGet("{id:int}/recipes")]
         public async Task<IActionResult> GetRelatedRecipes(int id)
         {
             var product = await _context.TMarketProducts
@@ -358,6 +322,269 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                 .ToListAsync();
 
             return Ok(recipes);
+        }
+
+        // 賣家後台商品列表（含近30天銷量）
+        [HttpGet("sellcenter")]
+        public async Task<IActionResult> GetSellerProducts(
+            [FromQuery] byte? status,
+            [FromQuery] bool lowStock = false,
+            [FromQuery] int page = 1,
+            [FromQuery] string? keyword = null)
+        {
+            // 之後換成從 Token 拿 sellerId
+            var query = _context.TMarketProducts
+                .Where(p => p.FSellerId == 7)
+                .AsQueryable();
+
+            if (status.HasValue)
+                query = query.Where(p => p.FProductStatus == status.Value);
+
+            if (lowStock)
+                query = query.Where(p => p.FStock < 10);
+
+            if (!string.IsNullOrWhiteSpace(keyword))
+                query = query.Where(p =>
+                    p.FProductName.Contains(keyword) ||
+                    p.FDescription.Contains(keyword) ||
+                    p.FBrandOrOrigin.Contains(keyword));
+
+            var totalCount = await query.CountAsync();
+
+            var products = await query
+                .OrderBy(p => p.FProductId)
+                .Skip((page - 1) * 10)
+                .Take(10)
+                .Select(p => new MarketSellerProductListDto
+                {
+                    ProductId = p.FProductId,
+                    ProductNo = p.FProductNo,
+                    ProductName = p.FProductName,
+                    Description = p.FDescription,
+                    Stock = p.FStock,
+                    Price = p.FPrice,
+                    BrandOrOrigin = p.FBrandOrOrigin,
+                    ManufacturingDate = p.FManufacturingDate,
+                    ExpirationDate = p.FExpirationDate,
+                    ProductStatus = p.FProductStatus,
+                    ImageUrls = p.TMarketProductImages
+                        .OrderBy(img => img.FSortOrder)
+                        .Select(img => ImageBaseUrl + img.FImageUrl)
+                        .ToList(),
+                    SalesLast30Days = 0
+                })
+                .ToListAsync();
+
+            // 一支 SQL 算完這頁所有商品的近30天銷量
+            var since = DateTime.Now.AddDays(-30);
+            var productIds = products.Select(p => p.ProductId).ToList();
+
+            var salesMap = await _context.TMarketOrderDetails
+                .Where(od =>
+                    productIds.Contains(od.FProductId) &&
+                    od.FOrder.FOrderDate >= since)
+                .GroupBy(od => od.FProductId)
+                .Select(g => new
+                {
+                    ProductId = g.Key,
+                    Quantity = g.Sum(od => od.FQuantity)
+                })
+                .ToDictionaryAsync(x => x.ProductId, x => x.Quantity);
+
+            foreach (var p in products)
+                p.SalesLast30Days = salesMap.TryGetValue(p.ProductId, out var qty) ? qty : 0;
+
+            return Ok(new { items = products, totalCount });
+        }
+
+        // 上下架靜默切換
+        [HttpPatch("{id}/status")]
+        public async Task<IActionResult> UpdateProductStatus(
+            int id, [FromBody] UpdateProductStatusDto dto)
+        {
+            var product = await _context.TMarketProducts
+                .FirstOrDefaultAsync(p => p.FProductId == id && p.FSellerId == 7); // 之後改 Token
+
+            if (product == null)
+                return NotFound(new { message = "商品不存在或無權限" });
+
+            product.FProductStatus = (byte)dto.Status;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "狀態更新成功" });
+        }
+
+        // 賣家取得單一商品（含所有狀態、含圖片 id）
+        [HttpGet("seller/{id:int}")]
+        public async Task<IActionResult> GetSellerProductDetail(int id)
+        {
+            var product = await _context.TMarketProducts
+                .Where(p => p.FProductId == id && p.FSellerId == 7) // 之後換 Token
+                .Select(p => new MarketSellerProductDetailDto
+                {
+                    ProductId = p.FProductId,
+                    ProductNo = p.FProductNo,
+                    ProductName = p.FProductName,
+                    Description = p.FDescription,
+                    Stock = p.FStock,
+                    Price = p.FPrice,
+                    BrandOrOrigin = p.FBrandOrOrigin,
+                    ManufacturingDate = p.FManufacturingDate,
+                    ExpirationDate = p.FExpirationDate,
+                    ProductStatus = p.FProductStatus,
+                    ProductsCategoryNo = p.FProductsCategoryNo,
+                    Images = p.TMarketProductImages
+                        .OrderBy(img => img.FSortOrder)
+                        .Select(img => new ProductImageDto
+                        {
+                            ImageId = img.FProductImageId,
+                            ImageUrl = ImageBaseUrl + img.FImageUrl,
+                            SortOrder = img.FSortOrder
+                        })
+                        .ToList()
+                })
+                .FirstOrDefaultAsync();
+
+            if (product == null)
+                return NotFound(new { message = "商品不存在或無權限" });
+
+            return Ok(product);
+        }
+
+        // 賣家更新商品（精細圖片處理）
+        [HttpPut("seller/{id:int}")]
+        [DisableRequestSizeLimit]
+        [RequestFormLimits(MultipartBodyLengthLimit = 52428800)]
+        public async Task<IActionResult> UpdateProduct(int id, [FromForm] MarketProductUpdateDto dto)
+        {
+            var product = await _context.TMarketProducts
+                .Include(p => p.TMarketProductImages)
+                .FirstOrDefaultAsync(p => p.FProductId == id && p.FSellerId == 7); // 之後換 Token
+
+            if (product == null)
+                return NotFound(new { message = "商品不存在或無權限" });
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                // 更新主表
+                product.FProductName = dto.ProductName;
+                product.FProductsCategoryNo = dto.ProductsCategoryNo;
+                product.FPrice = dto.Price;
+                product.FStock = dto.Stock;
+                product.FBrandOrOrigin = dto.BrandOrOrigin;
+                product.FDescription = dto.Description;
+                product.FManufacturingDate = dto.ManufacturingDate;
+                product.FExpirationDate = dto.ExpirationDate;
+
+                //更新狀態
+                if (dto.ProductStatus.HasValue)
+                    product.FProductStatus = dto.ProductStatus.Value;
+
+                // 刪除指定圖片
+                if (dto.DeleteImageIds != null && dto.DeleteImageIds.Any())
+                {
+                    var toDelete = product.TMarketProductImages
+                        .Where(img => dto.DeleteImageIds.Contains(img.FProductImageId))
+                        .ToList();
+
+                    foreach (var img in toDelete)
+                    {
+                        // 刪除實體檔案
+                        var filePath = Path.Combine(_env.WebRootPath,
+                            img.FImageUrl.TrimStart('/'));
+                        if (System.IO.File.Exists(filePath))
+                            System.IO.File.Delete(filePath);
+
+                        _context.TMarketProductImages.Remove(img);
+                    }
+                }
+
+                // 新增圖片
+                if (dto.NewImages != null && dto.NewImages.Any())
+                {
+                    var uploadFolder = Path.Combine(_env.WebRootPath, "ProductImageUploads");
+                    if (!Directory.Exists(uploadFolder))
+                        Directory.CreateDirectory(uploadFolder);
+
+                    // 現有最大 sortOrder
+                    var maxSort = product.TMarketProductImages
+                        .Where(img => !(dto.DeleteImageIds != null &&
+                                         dto.DeleteImageIds.Contains(img.FProductImageId)))
+                        .Select(img => (int)img.FSortOrder)
+                        .DefaultIfEmpty(-1)
+                        .Max();
+
+                    for (int i = 0; i < dto.NewImages.Count; i++)
+                    {
+                        var file = dto.NewImages[i];
+                        var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
+                        var filePath = Path.Combine(uploadFolder, fileName);
+
+                        using var stream = new FileStream(filePath, FileMode.Create);
+                        await file.CopyToAsync(stream);
+
+                        _context.TMarketProductImages.Add(new TMarketProductImage
+                        {
+                            FProductId = product.FProductId,
+                            FImageUrl = $"/ProductImageUploads/{fileName}",
+                            FSortOrder = (short)(maxSort + 1 + i)
+                        });
+                    }
+                }
+
+                // 更新圖片排序
+                if (dto.ImageOrder != null && dto.ImageOrder.Any())
+                {
+                    var imageMap = product.TMarketProductImages
+                        .ToDictionary(img => img.FProductImageId);
+
+                    for (int i = 0; i < dto.ImageOrder.Count; i++)
+                    {
+                        if (imageMap.TryGetValue(dto.ImageOrder[i], out var img))
+                            img.FSortOrder = (short)i;
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                var message = ex.InnerException?.Message ?? ex.Message;
+                return StatusCode(500, $"更新商品失敗：{message}");
+            }
+
+            return Ok(new { message = "更新成功" });
+        }
+
+        // PATCH /api/MarketProduct/seller/{id}/stock
+        [HttpPatch("seller/{id:int}/stock")]
+        public async Task<IActionResult> UpdateProductStock(int id, [FromBody] MarketProductStockUpdateDto dto)
+        {
+            var product = await _context.TMarketProducts
+                .FirstOrDefaultAsync(p => p.FProductId == id && p.FSellerId == 7); // 之後換 Token
+
+            if (product == null)
+                return NotFound(new { message = "商品不存在或無權限" });
+
+            if (dto.Stock < 0)
+                return BadRequest(new { message = "庫存不能為負數" });
+
+            product.FStock = dto.Stock;
+
+            // 庫存大於 0 且目前是已售完狀態，自動改回販售中
+            if (dto.Stock > 0 && product.FProductStatus == 2)
+                product.FProductStatus = 1;
+
+            // 庫存為 0 且目前是販售中，自動改成已售完
+            if (dto.Stock == 0 && product.FProductStatus == 1)
+                product.FProductStatus = 2;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "庫存更新成功", stock = product.FStock, productStatus = product.FProductStatus });
         }
     }
 
