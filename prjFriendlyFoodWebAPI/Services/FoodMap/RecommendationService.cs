@@ -48,13 +48,13 @@ namespace prjFriendlyFoodWebAPI.Services.FoodMap
                 await _context.TFoodMapPlaces
                     .AsNoTracking()
                     .Where(r =>
-                        (bool)r.FIsRecommend)
+                        (bool)r.FRecommend)
                     .Select(r => new
                     {
                         r.FPlaceId,
                         r.FName,
                         r.FGoogleRating,
-                        r.FIsRecommend
+                        r.FRecommend
                     })
                     .ToListAsync();
 
@@ -74,7 +74,7 @@ namespace prjFriendlyFoodWebAPI.Services.FoodMap
                         FDistance = 0,
 
                         isRecommend =
-                            (bool)r.FIsRecommend,
+                            (bool)r.FRecommend,
 
                         MatchedShoppingItemIDs =
                             items

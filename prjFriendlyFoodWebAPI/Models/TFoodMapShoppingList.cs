@@ -11,7 +11,7 @@ public partial class TFoodMapShoppingList
 
     public string FListName { get; set; } = null!;
 
-    public string FStatus { get; set; } = null!;
+    public string? FStatus { get; set; }
 
     public DateTime FCreatedTime { get; set; }
 

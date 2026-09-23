@@ -28,4 +28,8 @@ public partial class TFoodMapTripPlace
     public virtual TFoodMapPlace FPlace { get; set; } = null!;
 
     public virtual TFoodMapTrip FTrip { get; set; } = null!;
+
+    public virtual ICollection<TFoodMapTripRoute> TFoodMapTripRouteFFromTripPlaces { get; set; } = new List<TFoodMapTripRoute>();
+
+    public virtual ICollection<TFoodMapTripRoute> TFoodMapTripRouteFToTripPlaces { get; set; } = new List<TFoodMapTripRoute>();
 }
