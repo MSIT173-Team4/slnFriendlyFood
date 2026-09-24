@@ -1,8 +1,14 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using prjFriendlyFoodWebAPI.Models;
+
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using prjFriendlyFoodWebAPI.Extensions;
+using prjFriendlyFoodWebAPI.ExternalServices.FoodMap.Google.Interfaces;
+using prjFriendlyFoodWebAPI.ExternalServices.FoodMap.Google.Models;
 using prjFriendlyFoodWebAPI.Models;
 using prjFriendlyFoodWebAPI.Services.FoodMap;
 using prjFriendlyFoodWebAPI.Services.FoodMap.Interfaces;
@@ -55,13 +61,41 @@ builder.Services.Configure<FormOptions>(options =>
     options.MultipartBodyLengthLimit = 50 * 1024 * 1024;
     options.ValueLengthLimit = 10 * 1024 * 1024;
 });
+builder.Services.Configure<GooglePlacesOptions>(
+    builder.Configuration
+        .GetSection("GoogleMaps"));
 
+builder.Services.AddHttpClient<
+    IGooglePlacesClient,
+    GooglePlacesClient>(
+    (serviceProvider, client) =>
+    {
+        var options =
+            serviceProvider
+                .GetRequiredService<
+                    IOptions<GooglePlacesOptions>>()
+                .Value;
+
+        client.BaseAddress =
+            new Uri(options.PlacesBaseUrl);
+
+        client.Timeout =
+            TimeSpan.FromSeconds(10);
+    });
+
+
+builder.Services.AddHttpClient<IGoogleRoutesClient, GoogleRoutesClient>();
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<EncodeServices>();
 builder.Services.AddScoped<UserServices>();
 builder.Services.AddScoped<TokenServices>();
+builder.Services.AddScoped<IShoppingListMappingService, ShoppingListMappingService>();
 builder.Services.AddScoped<IFoodMapService, PlaceService>();
+builder.Services.AddScoped<IRecommendationServices, RecommendationService>();
+builder.Services.AddScoped<ITripServices, TripServices>();
+builder.Services.AddScoped<ITripOptimizationService, TripOptimizationService>();
+builder.Services.AddScoped<ITripPlanningService, TripPlanningService>();
 builder.Services.AddDbContext<FriendlyFoodDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddRecipeModule();

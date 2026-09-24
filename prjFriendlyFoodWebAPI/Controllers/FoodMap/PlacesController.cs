@@ -7,12 +7,12 @@ namespace prjFriendlyFoodWebAPI.Controllers.FoodMap
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class PlaceController : Controller
+    public class PlacesController : Controller
     {
         private readonly IFoodMapService _placeService;
 
 
-        public PlaceController(IFoodMapService placeService)
+        public PlacesController(IFoodMapService placeService)
         {
             _placeService = placeService;
 
@@ -35,27 +35,24 @@ namespace prjFriendlyFoodWebAPI.Controllers.FoodMap
             return Ok(place);
         }
         [HttpGet("nearby")]
-        public async Task<ActionResult<List<PlaceDTO>>> GetNearbyPlaces(
-            [FromQuery] decimal latitude,
-            [FromQuery] decimal longitude,
-            [FromQuery] decimal radius)
+        public async Task<ActionResult<NearbyResponseDTO>> GetNearbyPlaces([FromQuery] NearbyRequestDTO request,CancellationToken cancellationToken)
         {
-            var nearbyPlaces = await _placeService.GetNearbyPlacesAsync(new PlacesDTO
-            {
-                Latitude = latitude,
-                Longitude = longitude,
-                Radius = radius
-            });
-            return Ok(nearbyPlaces);
+            var result = await _placeService.GetNearbyPlacesAsync(request, cancellationToken);
+            return Ok(result);
         }
-        [HttpGet("nearby/fallback")]
-        public async Task<ActionResult<List<PlaceDTO>>> GetNearbyPlacesWithFallback(
-            [FromQuery] decimal latitude,
-            [FromQuery] decimal longitude)
-        {
-            var nearbyPlaces = await _placeService.GetNearbyPlacesWithFallbackAsync(latitude, longitude);
 
-            return Ok(nearbyPlaces);
+        [HttpPost("resolve")]
+        public async Task<ActionResult<int>> ResolvePlace([FromBody] ResolvePlaceRequestDTO request,CancellationToken cancellationToken)
+        {
+            try
+            {
+                var placeId = await _placeService.ResolvePlaceAsync(request, cancellationToken);
+                return Ok(placeId);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
     }
 }

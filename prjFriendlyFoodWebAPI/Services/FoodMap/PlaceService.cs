@@ -1,5 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using prjFriendlyFoodWebAPI.DTOs.FoodMap;
+using prjFriendlyFoodWebAPI.ExternalServices.FoodMap.Google.Interfaces;
+using prjFriendlyFoodWebAPI.ExternalServices.FoodMap.Google.Models;
 using prjFriendlyFoodWebAPI.Models;
 using prjFriendlyFoodWebAPI.Services.FoodMap.Interfaces;
 
@@ -7,11 +9,80 @@ namespace prjFriendlyFoodWebAPI.Services.FoodMap
 {
     public class PlaceService : IFoodMapService
     {
+
+        private const double InitialRadiusKm = 1.0;
+
+        private const double ExpandedRadiusKm = 3.0;
+
+        private const int DefaultMinimumResults = 5;
+        private static readonly Dictionary<long, string> CategoryToGooglePlaceTypeMap = new()
+        {
+            [1] = "食品",
+            [2] = "賣場",
+            [3] = "市場",
+            [4] = "餐廳"
+        };
         private readonly FriendlyFoodDbContext _context;
-        public PlaceService(FriendlyFoodDbContext context)
+        private readonly IGooglePlacesClient _googlePlacesClient;
+
+        public PlaceService(FriendlyFoodDbContext context, IGooglePlacesClient googlePlacesClient)
         {
             _context = context;
+            _googlePlacesClient = googlePlacesClient;
         }
+        private static TFoodMapPlace MapGooglePlaceToRestaurant(GooglePlace googlePlace, int categoryId)
+        {
+            return new TFoodMapPlace
+            {
+                FGooglePlaceId =
+                    googlePlace.Id,
+
+                FPlaceCategoryId =
+                    categoryId,
+
+                FName =
+                    googlePlace.DisplayName?.Text
+                    ?? string.Empty,
+
+                FAddress =
+                    googlePlace.FormattedAddress
+                    ?? string.Empty,
+
+                FLatitude =
+                    (decimal)(
+                        googlePlace.Location?.Latitude
+                        ?? 0),
+
+                FLongitude =
+                    (decimal)(
+                        googlePlace.Location?.Longitude
+                        ?? 0),
+
+                FPhone =
+                    googlePlace.NationalPhoneNumber,
+
+                FGoogleRating =
+                    googlePlace.Rating.HasValue
+                        ? (decimal)googlePlace.Rating.Value
+                        : null,
+
+                FGoogleReviewCount =
+                    googlePlace.UserRatingCount,
+
+                FBusinessStatus =
+                    googlePlace.BusinessStatus,
+
+                FIsActive = true,
+
+                // 記錄這筆快照的同步時間，供之後判斷資料是否過期（第 60 章的背景排程會用到）。
+                FSyncedAt =
+                    DateTime.UtcNow,
+
+                FCreatedTime =
+                    DateTime.UtcNow
+            };
+        }
+
 
         public async Task<List<PlaceDTO>> GetPlacesAsync()
         {
@@ -52,94 +123,155 @@ namespace prjFriendlyFoodWebAPI.Services.FoodMap
                 .FirstOrDefaultAsync();
         }
 
-        public async Task<List<PlaceDTO>> GetNearbyPlacesAsync(PlacesDTO request)
+        public async Task<NearbyResponseDTO> GetNearbyPlacesAsync(NearbyRequestDTO request, CancellationToken cancellationToken = default)
         {
-            // Step 1：算出 Bounding Box 邊界（粗篩，SQL 端執行）
-            var latDelta = request.Radius / 111m; // 緯度 1 度約等於 111 公里
-            var lngDelta = request.Radius / (111m * (decimal)Math.Cos((double)request.Latitude * Math.PI / 180));
-
-            var minLat = request.Latitude - latDelta;
-            var maxLat = request.Latitude + latDelta;
-            var minLng = request.Longitude - lngDelta;
-            var maxLng = request.Longitude + lngDelta;
-
-            var candidates = await _context.TFoodMapPlaces
-                .AsNoTracking()
-                .Where(r =>
-                    r.FLatitude >= minLat && r.FLatitude <= maxLat &&
-                    r.FLongitude >= minLng && r.FLongitude <= maxLng)
-                .Include(place => place.TFoodMapRecommendationPlaces)
-                .ToListAsync();
-
-            // Step 2：精確計算距離（記憶體端執行，資料量已經很小）
-            var result = candidates
-                .Select(r => new
-                {
-                    Place = r,
-                    DistanceKm = CalculateDistanceKm(
-                        (double)request.Latitude, (double)request.Longitude,
-                        (double)r.FLatitude, (double)r.FLongitude)
-                })
-                .Where(x => x.DistanceKm <= (double)request.Radius)
-                .OrderBy(x => x.DistanceKm)
-                .Select(x => new PlaceDTO
-                {
-                    FPlaceId = x.Place.FPlaceId,
-                    FName = x.Place.FName,
-                    FAddress = x.Place.FAddress,
-                    FLatitude = x.Place.FLatitude,
-                    FLongitude = x.Place.FLongitude,
-                    FPhone = x.Place.FPhone,
-                    FGoogleRating = x.Place.FGoogleRating,
-                    FGoogleReviewCount = x.Place.FGoogleReviewCount,
-                    FIsRecommend = x.Place.TFoodMapRecommendationPlaces.Any(item => item.FIsRecommend)
-                })
-                .ToList();
-            return result;
-        }
-
-        private static double CalculateDistanceKm(
-            double lat1, double lng1, double lat2, double lng2)
-        {
-            const double earthRadiusKm = 6371;
-
-            var dLat = ToRadians(lat2 - lat1);
-            var dLng = ToRadians(lng2 - lng1);
-
-            var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
-                    Math.Cos(ToRadians(lat1)) * Math.Cos(ToRadians(lat2)) *
-                    Math.Sin(dLng / 2) * Math.Sin(dLng / 2);
-
-            var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
-
-            return earthRadiusKm * c;
-        }
-
-        private static double ToRadians(double degrees) => degrees * Math.PI / 180;
-
-        public async Task<List<PlaceDTO>> GetNearbyPlacesWithFallbackAsync( decimal latitude, decimal longitude)
-        {
-            decimal[] searchRadiusSteps = [1m, 3m];
-            const int minimumResultCount = 5; // 可依需求調整門檻
-
-            List<PlaceDTO> result = [];
-
-            foreach (var radius in searchRadiusSteps)
+            var minimumResults = request.MinimumRequests > 0 ? request.MinimumRequests : DefaultMinimumResults;
+            string? googlePlaceType = null;
+            if (request.FPlacesCategoryId.HasValue)
             {
-                result = await GetNearbyPlacesAsync(new PlacesDTO
-                {
-                    Latitude = latitude,
-                    Longitude = longitude,
-                    Radius = radius
-                }   
-                );
-
-                if (result.Count >= minimumResultCount)
-                {
-                    break;
-                }
+                // 【方案 B】改查字典，不查資料庫。
+                CategoryToGooglePlaceTypeMap.TryGetValue(
+                    request.FPlacesCategoryId.Value,
+                    out googlePlaceType);
             }
-            return result;
+            var places =
+                await _googlePlacesClient
+                    .SearchNearbyAsync(
+                        request.FLatitude,
+                        request.FLongitude,
+                        InitialRadiusKm * 1000,
+                        googlePlaceType,
+                        cancellationToken);
+
+            var expandedSearch = false;
+
+            var searchRadiusKm =
+                InitialRadiusKm;
+
+            if (places.Count < minimumResults)
+            {
+                places =
+                    await _googlePlacesClient
+                        .SearchNearbyAsync(
+                            (double)request.FLatitude,
+                            (double)request.FLongitude,
+                            ExpandedRadiusKm * 1000,
+                            googlePlaceType,
+                            cancellationToken);
+
+                expandedSearch = true;
+
+                searchRadiusKm =
+                    ExpandedRadiusKm;
+            }
+
+            var result =
+                places.Select(p => new PlaceDTO
+                {
+                    FPlaceId = 0,
+
+                    FGooglePlaceId = p.Id,
+
+                    FName =
+                        p.DisplayName?.Text
+                        ?? string.Empty,
+
+                    FAddress =
+                        p.FormattedAddress
+                        ?? string.Empty,
+
+                    FLatitude =
+                        (decimal)(
+                            p.Location?.Latitude
+                            ?? 0),
+
+                    FLongitude =
+                        (decimal)(
+                            p.Location?.Longitude
+                            ?? 0),
+
+                    FPhone =
+                        p.NationalPhoneNumber,
+
+                    FGoogleRating =
+                        p.Rating.HasValue
+                            ? (decimal)p.Rating.Value
+                            : null,
+
+                    FGoogleReviewCount =
+                        p.UserRatingCount,
+
+                    FBusinessStatus =
+                        p.BusinessStatus,
+
+                    FIsRecommend = false
+                }).ToList();
+
+            return new NearbyResponseDTO
+            {
+                FLatitude = request.FLatitude,
+
+                FLongitude = request.FLongitude,
+
+                SearchRadiusKm =
+                    searchRadiusKm,
+
+                ExpandedSearch =
+                    expandedSearch,
+
+                ResultCount =
+                    result.Count,
+
+                Places =
+                    result
+            };
+        }
+
+        public async Task<int> ResolvePlaceAsync(ResolvePlaceRequestDTO request, CancellationToken cancellationToken = default)
+        {
+
+
+            var existing = await _context.TFoodMapPlaces.FirstOrDefaultAsync(
+            p => p.FGooglePlaceId == request.FGooglePlaceId,
+            cancellationToken);
+
+            if (existing is not null)
+            {
+                return existing.FPlaceId;
+            }
+
+            var detail = await _googlePlacesClient.GetPlaceDetailsAsync(
+                request.FGooglePlaceId, cancellationToken);
+
+            if (detail is null)
+            {
+                throw new ArgumentException($"Google 查無此地點：{request.FGooglePlaceId}");
+            }
+
+            var place = new TFoodMapPlace
+            {
+                FGooglePlaceId = detail.Id,
+                //FPlaceCategoryId = request.FPlaceCategoryId,
+                FName = detail.DisplayName?.Text ?? string.Empty,
+                FAddress = detail.FormattedAddress ?? string.Empty,
+                FLatitude = (decimal)(detail.Location?.Latitude ?? 0),
+                FLongitude = (decimal)(detail.Location?.Longitude ?? 0),
+                FPhone = detail.NationalPhoneNumber,
+                FGoogleRating = detail.Rating.HasValue ? (decimal)detail.Rating.Value : null,
+                FGoogleReviewCount = detail.UserRatingCount,
+                FBusinessStatus = detail.BusinessStatus,
+                FIsActive = true,
+                FSyncedAt = DateTime.UtcNow,
+                FCreatedTime = DateTime.UtcNow
+            };
+
+            _context.TFoodMapPlaces.Add(place);
+            await _context.SaveChangesAsync(cancellationToken);
+
+            return place.FPlaceId;
         }
     }
 }
+
+
+
