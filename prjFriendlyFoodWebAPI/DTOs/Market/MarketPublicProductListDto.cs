@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 namespace prjFriendlyFoodWebAPI.DTOs.Market
 {
-    public class DTOMarketPublicProductList
+    public class MarketPublicProductListDto
     {
         /// <summary>
         /// 產品序號

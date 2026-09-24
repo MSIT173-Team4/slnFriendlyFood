@@ -6,7 +6,7 @@ namespace prjFriendlyFoodWebAPI.ExternalServices.SmartBot;
 
 public interface IPantryAiClient
 {
-    Task<ServiceResult<PantryAiDiagnosticDto>> DiagnoseImageAsync(
+    Task<ServiceResult<IReadOnlyCollection<PantryAiDiagnosticDto>>> DiagnoseImageAsync(
         IFormFile file,
         CancellationToken cancellationToken);
 }

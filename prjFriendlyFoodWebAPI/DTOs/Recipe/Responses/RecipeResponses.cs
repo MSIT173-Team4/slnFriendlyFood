@@ -13,7 +13,10 @@ public sealed record RecipeSummaryDto(
     int Favorites,
     bool IsAiGenerated,
     string CategoryName,
+    int AuthorId,
     string AuthorName,
+    string? AuthorImageUrl,
+    int AuthorRecipeCount,
     IReadOnlyCollection<string> Tags);
 
 public sealed record RecipeDetailDto(
@@ -33,7 +36,10 @@ public sealed record RecipeDetailDto(
     int Likes,
     int Favorites,
     string CategoryName,
+    int AuthorId,
     string AuthorName,
+    string? AuthorImageUrl,
+    int AuthorRecipeCount,
     IReadOnlyCollection<string> Tags,
     IReadOnlyCollection<RecipeIngredientDto> Ingredients,
     IReadOnlyCollection<RecipeStepDto> Steps);
@@ -78,3 +84,34 @@ public sealed record RecipeEngagementDto(
     bool IsFavorite,
     int LikeCount,
     int FavoriteCount);
+
+public sealed record RecipeIngredientAvailabilityDto(
+    int IngredientId,
+    string IngredientName,
+    decimal RequiredAmount,
+    decimal AvailableAmount,
+    string Unit,
+    bool IsSufficient);
+
+public sealed record RecipeAvailabilityDto(
+    int RecipeId,
+    int UserId,
+    int TargetServings,
+    IReadOnlyCollection<RecipeIngredientAvailabilityDto> Ingredients);
+
+public sealed record RecipeShoppingListItemDto(
+    int ShoppingItemId,
+    int IngredientId,
+    string IngredientName,
+    decimal Quantity,
+    string Unit,
+    bool IsPurchased,
+    string? Note);
+
+public sealed record RecipeShoppingListDto(
+    int ShoppingListId,
+    int UserId,
+    string ListName,
+    string Status,
+    DateTime? UpdatedTime,
+    IReadOnlyCollection<RecipeShoppingListItemDto> Items);

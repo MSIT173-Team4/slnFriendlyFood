@@ -16,8 +16,44 @@ public sealed class RecipeService(
         string? search,
         int? categoryId,
         string? tag,
+        int? userId,
         CancellationToken cancellationToken)
     {
+        var preferredCategoryIds = new HashSet<int>();
+        var preferredTagIds = new HashSet<int>();
+
+        if (userId is > 0)
+        {
+            var likedRecipeIds = context.TRecipeLikes
+                .AsNoTracking()
+                .Where(item => item.FUserId == userId.Value)
+                .Select(item => item.FRecipeId);
+            var favoriteRecipeIds = context.TRecipeFavorites
+                .AsNoTracking()
+                .Where(item => item.FUserId == userId.Value)
+                .Select(item => item.FRecipeId);
+            var engagedRecipeIds = await likedRecipeIds
+                .Union(favoriteRecipeIds)
+                .Distinct()
+                .ToArrayAsync(cancellationToken);
+
+            if (engagedRecipeIds.Length > 0)
+            {
+                preferredCategoryIds = await context.TRecipes
+                    .AsNoTracking()
+                    .Where(recipe => engagedRecipeIds.Contains(recipe.FRecipeId))
+                    .Select(recipe => recipe.FCategoryId)
+                    .Distinct()
+                    .ToHashSetAsync(cancellationToken);
+                preferredTagIds = await context.TRecipeTagMappings
+                    .AsNoTracking()
+                    .Where(mapping => engagedRecipeIds.Contains(mapping.FRecipeId))
+                    .Select(mapping => mapping.FTagId)
+                    .Distinct()
+                    .ToHashSetAsync(cancellationToken);
+            }
+        }
+
         var query = context.TRecipes
             .AsNoTracking()
             .Where(recipe => recipe.FStatus == 1);
@@ -53,12 +89,15 @@ public sealed class RecipeService(
                 on recipe.FCategoryId equals category.FCategoryId
             join user in context.TUsers.AsNoTracking()
                 on recipe.FUserId equals user.FId
-            orderby recipe.FCreatedAt descending
             select new
             {
                 Recipe = recipe,
                 CategoryName = category.FCategoryName,
-                AuthorName = user.FUsername
+                AuthorId = user.FId,
+                AuthorName = user.FUsername,
+                AuthorImageUrl = user.FImage,
+                AuthorRecipeCount = context.TRecipes.Count(item =>
+                    item.FUserId == user.FId && item.FStatus == 1)
             }).ToListAsync(cancellationToken);
 
         var recipeIds = rows.Select(row => row.Recipe.FRecipeId).ToArray();
@@ -67,7 +106,7 @@ public sealed class RecipeService(
             join recipeTag in context.TRecipeTags.AsNoTracking()
                 on mapping.FTagId equals recipeTag.FTagId
             where recipeIds.Contains(mapping.FRecipeId)
-            select new { mapping.FRecipeId, recipeTag.FTagName })
+            select new { mapping.FRecipeId, mapping.FTagId, recipeTag.FTagName })
             .ToListAsync(cancellationToken);
 
         var tagsByRecipeId = tagRows
@@ -76,7 +115,24 @@ public sealed class RecipeService(
                 group => group.Key,
                 group => (IReadOnlyCollection<string>)group.Select(row => row.FTagName).ToArray());
 
-        var recipes = rows.Select(row => new RecipeSummaryDto(
+        var tagIdsByRecipeId = tagRows
+            .GroupBy(row => row.FRecipeId)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Select(row => row.FTagId).ToHashSet());
+
+        var orderedRows = rows
+            .OrderByDescending(row =>
+                (preferredCategoryIds.Contains(row.Recipe.FCategoryId) ? 100_000L : 0L) +
+                tagIdsByRecipeId
+                    .GetValueOrDefault(row.Recipe.FRecipeId, [])
+                    .Count(preferredTagIds.Contains) * 25_000L +
+                row.Recipe.FFavorites * 100L +
+                row.Recipe.FLikes * 25L +
+                row.Recipe.FViews)
+            .ThenByDescending(row => row.Recipe.FCreatedAt);
+
+        var recipes = orderedRows.Select(row => new RecipeSummaryDto(
             row.Recipe.FRecipeId,
             row.Recipe.FTitle,
             row.Recipe.FDescription ?? string.Empty,
@@ -89,7 +145,10 @@ public sealed class RecipeService(
             row.Recipe.FFavorites,
             row.Recipe.FIsAiGenerated,
             row.CategoryName,
+            row.AuthorId,
             row.AuthorName,
+            row.AuthorImageUrl,
+            row.AuthorRecipeCount,
             tagsByRecipeId.GetValueOrDefault(row.Recipe.FRecipeId, [])))
             .ToArray();
 
@@ -380,6 +439,206 @@ public sealed class RecipeService(
         }
     }
 
+    public async Task<ServiceResult<RecipeAvailabilityDto>> GetAvailabilityAsync(
+        int recipeId,
+        int userId,
+        int targetServings,
+        CancellationToken cancellationToken)
+    {
+        if (userId <= 0 || targetServings is < 1 or > 20)
+        {
+            return ServiceResult<RecipeAvailabilityDto>.Validation(
+                "會員與料理份量資料不正確。");
+        }
+
+        var recipe = await context.TRecipes
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                item => item.FRecipeId == recipeId && item.FStatus == 1,
+                cancellationToken);
+        if (recipe is null)
+        {
+            return ServiceResult<RecipeAvailabilityDto>.NotFound("找不到該食譜資料。");
+        }
+
+        if (!await context.TUsers.AsNoTracking().AnyAsync(
+                user => user.FId == userId,
+                cancellationToken))
+        {
+            return ServiceResult<RecipeAvailabilityDto>.NotFound("找不到指定的會員。");
+        }
+
+        var ingredientRows = await (
+            from recipeIngredient in context.TRecipeIngredients.AsNoTracking()
+            join ingredient in context.TIngredients.AsNoTracking()
+                on recipeIngredient.FIngredientId equals ingredient.FId
+            where recipeIngredient.FRecipeId == recipeId
+            orderby recipeIngredient.FSortOrder
+            select new
+            {
+                recipeIngredient.FIngredientId,
+                IngredientName = ingredient.FName,
+                BaseAmount = recipeIngredient.FBaseAmount ?? 1m,
+                Unit = recipeIngredient.FStandardUnit ?? string.Empty
+            }).ToListAsync(cancellationToken);
+
+        var ingredientIds = ingredientRows.Select(item => item.FIngredientId).ToArray();
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var pantryRows = await context.TRecipeUserPantries
+            .AsNoTracking()
+            .Where(item =>
+                item.FUserId == userId &&
+                item.FExpirationDate >= today &&
+                ingredientIds.Contains(item.FIngredientId))
+            .Select(item => new { item.FIngredientId, item.FAmount, item.FUnit })
+            .ToListAsync(cancellationToken);
+
+        var scaleRatio = (decimal)targetServings / Math.Max(recipe.FDefaultServings, 1);
+        var availability = ingredientRows.Select(ingredient =>
+        {
+            var requiredAmount = ingredient.BaseAmount * scaleRatio;
+            var availableAmount = pantryRows
+                .Where(item =>
+                    item.FIngredientId == ingredient.FIngredientId &&
+                    (string.IsNullOrWhiteSpace(ingredient.Unit) || item.FUnit == ingredient.Unit))
+                .Sum(item => item.FAmount);
+
+            return new RecipeIngredientAvailabilityDto(
+                ingredient.FIngredientId,
+                ingredient.IngredientName,
+                requiredAmount,
+                availableAmount,
+                ingredient.Unit,
+                availableAmount >= requiredAmount);
+        }).ToArray();
+
+        return ServiceResult<RecipeAvailabilityDto>.Success(
+            new RecipeAvailabilityDto(recipeId, userId, targetServings, availability),
+            "已比對食譜需求與會員冰箱庫存。");
+    }
+
+    public async Task<ServiceResult<RecipeShoppingListDto>> GetShoppingListAsync(
+        int userId,
+        CancellationToken cancellationToken)
+    {
+        if (userId <= 0 || !await context.TUsers.AsNoTracking().AnyAsync(
+                user => user.FId == userId,
+                cancellationToken))
+        {
+            return ServiceResult<RecipeShoppingListDto>.NotFound("找不到指定的會員。");
+        }
+
+        var shoppingList = await LoadShoppingListDtoAsync(userId, cancellationToken);
+        return ServiceResult<RecipeShoppingListDto>.Success(
+            shoppingList ?? new RecipeShoppingListDto(
+                0,
+                userId,
+                "我的料理採購清單",
+                "Draft",
+                null,
+                []),
+            shoppingList is null ? "目前沒有待購食材。" : "成功取得會員採購清單。");
+    }
+
+    public async Task<ServiceResult<RecipeShoppingListDto>> SaveShoppingListAsync(
+        int userId,
+        SaveRecipeShoppingListRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        if (userId <= 0 || !await context.TUsers.AnyAsync(
+                user => user.FId == userId,
+                cancellationToken))
+        {
+            return ServiceResult<RecipeShoppingListDto>.NotFound("找不到指定的會員。");
+        }
+
+        var normalizedItems = request.Items
+            .GroupBy(item => new { item.IngredientId, Unit = item.Unit.Trim() })
+            .Select(group => group.Last())
+            .ToArray();
+        if (normalizedItems.Any(item =>
+                item.IngredientId <= 0 ||
+                item.Quantity is <= 0 or > 99_999 ||
+                string.IsNullOrWhiteSpace(item.Unit)))
+        {
+            return ServiceResult<RecipeShoppingListDto>.Validation(
+                "採購食材的數量或單位不正確。");
+        }
+
+        var ingredientIds = normalizedItems.Select(item => item.IngredientId).Distinct().ToArray();
+        var existingIngredientCount = await context.TIngredients
+            .CountAsync(item => ingredientIds.Contains(item.FId), cancellationToken);
+        if (existingIngredientCount != ingredientIds.Length)
+        {
+            return ServiceResult<RecipeShoppingListDto>.Validation(
+                "採購清單包含不存在的標準食材代碼。");
+        }
+
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            var shoppingList = await context.TFoodMapShoppingLists
+                .Include(item => item.TFoodMapShoppingListItems)
+                .FirstOrDefaultAsync(
+                    item => item.FUserId == userId && item.FStatus == "Draft",
+                    cancellationToken);
+
+            if (shoppingList is null)
+            {
+                shoppingList = new TFoodMapShoppingList
+                {
+                    FUserId = userId,
+                    FListName = request.ListName.Trim(),
+                    FStatus = "Draft",
+                    FCreatedTime = DateTime.UtcNow,
+                    FUpdatedTime = DateTime.UtcNow
+                };
+                context.TFoodMapShoppingLists.Add(shoppingList);
+            }
+            else
+            {
+                shoppingList.FListName = request.ListName.Trim();
+                shoppingList.FUpdatedTime = DateTime.UtcNow;
+                context.TFoodMapShoppingListItems.RemoveRange(
+                    shoppingList.TFoodMapShoppingListItems);
+            }
+
+            shoppingList.TFoodMapShoppingListItems = normalizedItems
+                .Select(item => new TFoodMapShoppingListItem
+                {
+                    FIngredientId = item.IngredientId,
+                    FQuantity = item.Quantity,
+                    FUnit = item.Unit.Trim(),
+                    FIsPurchased = item.IsPurchased,
+                    FNote = item.Note?.Trim(),
+                    FCreatedTime = DateTime.UtcNow,
+                    FUpdatedTime = DateTime.UtcNow
+                })
+                .ToList();
+
+            await context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+
+            var savedList = await LoadShoppingListDtoAsync(userId, cancellationToken)
+                ?? throw new InvalidOperationException("採購清單儲存後無法重新讀取。");
+            return ServiceResult<RecipeShoppingListDto>.Success(
+                savedList,
+                "採購清單已儲存，重新整理或關閉網頁後仍會保留。");
+        }
+        catch (OperationCanceledException)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            throw;
+        }
+        catch (Exception exception)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            logger.LogError(exception, "會員 {UserId} 儲存採購清單失敗。", userId);
+            return ServiceResult<RecipeShoppingListDto>.Unexpected(
+                "採購清單儲存失敗，原有內容未變更。");
+        }
+    }
+
     public async Task<ServiceResult<RecipeMetadataDto>> GetMetadataAsync(
         CancellationToken cancellationToken)
     {
@@ -402,6 +661,53 @@ public sealed class RecipeService(
         return ServiceResult<RecipeMetadataDto>.Success(
             new RecipeMetadataDto(categories, tags),
             "成功取得食譜分類與標籤。");
+    }
+
+    private async Task<RecipeShoppingListDto?> LoadShoppingListDtoAsync(
+        int userId,
+        CancellationToken cancellationToken)
+    {
+        var header = await context.TFoodMapShoppingLists
+            .AsNoTracking()
+            .Where(item => item.FUserId == userId && item.FStatus == "Draft")
+            .OrderByDescending(item => item.FUpdatedTime ?? item.FCreatedTime)
+            .Select(item => new
+            {
+                item.FShoppingListId,
+                item.FUserId,
+                item.FListName,
+                item.FStatus,
+                item.FUpdatedTime
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (header is null)
+        {
+            return null;
+        }
+
+        var items = await (
+            from shoppingItem in context.TFoodMapShoppingListItems.AsNoTracking()
+            join ingredient in context.TIngredients.AsNoTracking()
+                on shoppingItem.FIngredientId equals ingredient.FId
+            where shoppingItem.FShoppingListId == header.FShoppingListId
+            orderby shoppingItem.FIsPurchased, ingredient.FName
+            select new RecipeShoppingListItemDto(
+                shoppingItem.FShoppingItemId,
+                shoppingItem.FIngredientId,
+                ingredient.FName,
+                shoppingItem.FQuantity,
+                shoppingItem.FUnit,
+                shoppingItem.FIsPurchased,
+                shoppingItem.FNote))
+            .ToListAsync(cancellationToken);
+
+        return new RecipeShoppingListDto(
+            header.FShoppingListId,
+            header.FUserId,
+            header.FListName,
+            header.FStatus,
+            header.FUpdatedTime,
+            items);
     }
 
     private async Task<string?> ValidateOwnerAndCategoryAsync(
@@ -526,7 +832,11 @@ public sealed class RecipeService(
             {
                 Recipe = recipeEntity,
                 CategoryName = category.FCategoryName,
-                AuthorName = user.FUsername
+                AuthorId = user.FId,
+                AuthorName = user.FUsername,
+                AuthorImageUrl = user.FImage,
+                AuthorRecipeCount = context.TRecipes.Count(item =>
+                    item.FUserId == user.FId && item.FStatus == 1)
             }).FirstOrDefaultAsync(cancellationToken);
 
         if (header is null)
@@ -588,7 +898,10 @@ public sealed class RecipeService(
             recipe.FLikes,
             recipe.FFavorites,
             header.CategoryName,
+            header.AuthorId,
             header.AuthorName,
+            header.AuthorImageUrl,
+            header.AuthorRecipeCount,
             tags,
             ingredients,
             steps);
