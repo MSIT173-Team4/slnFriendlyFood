@@ -1,15 +1,20 @@
-﻿using Microsoft.AspNetCore.Http.HttpResults;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using prjFriendlyFoodWebAPI.DTOs.Member;
 using prjFriendlyFoodWebAPI.Models;
+using System.Security.Claims;
 
 namespace prjFriendlyFoodWebAPI.Services.Member
 {
     public class UserServices
     {
         private readonly FriendlyFoodDbContext _db;
-        public UserServices(FriendlyFoodDbContext db)
+        private readonly IWebHostEnvironment _env;
+        public UserServices(FriendlyFoodDbContext db,IWebHostEnvironment env)
         {
+            _env = env;
             _db = db;
         }
         public async Task<bool> IsUsernameExists(string username)
@@ -20,6 +25,7 @@ namespace prjFriendlyFoodWebAPI.Services.Member
         {
             return await Task.Run(() => _db.TUsers.Any(user => user.FEmail == email));
         }
+        //register user
         public async Task<TUser> AddUser(UserRegisterDTO u, string password)
         {
             TUser user = new TUser
@@ -38,6 +44,29 @@ namespace prjFriendlyFoodWebAPI.Services.Member
 
             await _db.SaveChangesAsync();
             user = await _db.TUsers.FirstOrDefaultAsync(x => x.FUsername == u.fUsername);
+            return user;
+        }
+
+        //edit user profile
+        public async Task<TUser> EditProfile(UserEditDTO u,int id)
+        {
+            TUser user = await _db.TUsers.FirstOrDefaultAsync(x => x.FId == id);
+            if (user == null)
+            {
+                throw new InvalidOperationException("User not found");
+            }
+            user.FUsername = u.fUsername;
+            user.FEmail = u.fEmail;
+            user.FPhone = u.fPhone;
+            user.FImage = u.fImage;
+            user.FAddress = u.fAddress;
+            user.FIdNum = u.fIdNum;
+            await _db.SaveChangesAsync();
+            return user;
+        }
+        public async Task<TUser> GetUserById(int id)
+        {
+            var user = await Task.Run(() => _db.TUsers.FirstOrDefault(u => u.FId == id));
             return user;
         }
         public async Task<string> GetPasswordByUsername(string username)
@@ -60,5 +89,61 @@ namespace prjFriendlyFoodWebAPI.Services.Member
             var user = await Task.Run(() => _db.TUsers.FirstOrDefault(u => u.FEmail == email));
             return user;
         }
+        public async Task<TExternalLogin?> GetExternalLogin(
+        string provider,
+        string providerUserId)
+        {
+            return await _db.TExternalLogins.FirstOrDefaultAsync(
+                x => x.FProvider == provider && x.FProviderUserId == providerUserId);
+        }
+        public async Task<TExternalLogin> AddExternalLogin(
+        int userId,
+        string provider,
+        string providerUserId)
+        {
+            TExternalLogin externalLogin = new TExternalLogin
+            {
+                FUserId = userId,
+                FProvider = provider,
+                FProviderUserId = providerUserId
+            };
+
+            _db.TExternalLogins.Add(externalLogin);
+
+            await _db.SaveChangesAsync();
+
+            return externalLogin;
+        }
+        public async Task<string> UploadImage(IFormFile img,int uid)
+        {
+            TUser user = _db.TUsers.FirstOrDefault(x => x.FId == uid);
+            if (user == null)
+            {
+                throw new Exception("找不到會員");
+            }
+
+            if (img == null || img.Length == 0)
+            {
+                throw new ArgumentException("圖片不能為空");
+            }
+            string fileName = $"{Guid.NewGuid()}.jpg";
+            string folderPath = Path.Combine(_env.WebRootPath,"images","Member");
+            string filePath = Path.Combine(
+                folderPath,
+                fileName
+            );
+            using (FileStream stream = new FileStream(filePath,FileMode.Create))
+            {
+                await img.CopyToAsync(stream);
+            }
+            string imageUrl = $"/images/Member/{fileName}";
+
+            user.FImage = imageUrl;
+
+            await _db.SaveChangesAsync();
+
+            return imageUrl;
+        }
     }
 }
+

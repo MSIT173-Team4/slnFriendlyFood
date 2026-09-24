@@ -116,13 +116,37 @@ public partial class FriendlyFoodDbContext : DbContext
     public virtual DbSet<TStatus> TStatuses { get; set; }
 
     public virtual DbSet<TUser> TUsers { get; set; }
-
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseSqlServer("Data Source=.;Initial Catalog=FriendlyFoodDb;Integrated Security=True;Encrypt=True;Trust Server Certificate=True");
-
+    public virtual DbSet<TExternalLogin> TExternalLogins { get; set; }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<TExternalLogin>(entity =>
+        {
+            entity.HasKey(e => e.FId);
+
+            entity.ToTable("TExternalLogin");
+
+            entity.Property(e => e.FProvider)
+                .HasMaxLength(50);
+
+            entity.Property(e => e.FProviderUserId)
+                .HasMaxLength(255);
+
+            entity.HasIndex(
+                e => new
+                {
+                    e.FProvider,
+                    e.FProviderUserId
+                }
+            ).IsUnique();
+
+            entity.HasOne(d => d.FUser)
+                .WithMany()
+                .HasForeignKey(d => d.FUserId);
+            entity.HasIndex(
+                e => new { e.FProvider, e.FProviderUserId },
+                "UC_ExternalLogin"
+                ).IsUnique();
+        });
         modelBuilder.Entity<TApply>(entity =>
         {
             entity.HasKey(e => e.FId).HasName("PK__tApply__D9F8227CFD72D344");

@@ -28,6 +28,7 @@ builder.Services.AddCors(options =>
             .AllowCredentials();
     });
 });
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 .AddJwtBearer(options =>
 {
