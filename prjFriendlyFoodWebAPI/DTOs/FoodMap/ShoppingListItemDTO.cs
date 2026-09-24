@@ -2,11 +2,12 @@
 {
     public class ShoppingListItemDTO
     {
-        public int FShoppingItemId { get; set; }
+        public int FShoppingListItemId { get; set; }
+        public int FIngredientId { get; set; }
+        public string FIngredientName { get; set; } = string.Empty;
+        public decimal? FQuantity { get; set; }
+        public bool FIsPurchased { get; set; }
 
-        public string? FUnit { get; set; }
-        public decimal FQuantity { get; set; }
 
-        
     }
 }
