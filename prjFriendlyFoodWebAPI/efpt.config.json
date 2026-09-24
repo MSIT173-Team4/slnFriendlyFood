@@ -5,7 +5,7 @@
    "FilterSchemas": false,
    "IncludeConnectionString": false,
    "IrregularWords": null,
-   "MinimumProductVersion": "2.6.1604",
+   "MinimumProductVersion": "2.6.1706",
    "ModelNamespace": null,
    "OutputContextPath": null,
    "OutputPath": "Models",
@@ -143,7 +143,23 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[tMessageLike]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[tMessageTable]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tPostBlockTable]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tPostBookmarks]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tPostLike]",
          "ObjectType": 0
       },
       {
@@ -184,6 +200,10 @@
       },
       {
          "Name": "[dbo].[tRecipeUserPantry]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tRefreshToken]",
          "ObjectType": 0
       },
       {
