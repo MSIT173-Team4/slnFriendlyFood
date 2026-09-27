@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using prjFriendlyFoodWebAPI.DTOs.Market;
 using prjFriendlyFoodWebAPI.Models;
 using static Microsoft.Extensions.Logging.EventSource.LoggingEventSource;
+using prjFriendlyFoodWebAPI.Services.ImageUpload;
 
 namespace prjFriendlyFoodWebAPI.Controllers.Market
 {
@@ -14,15 +15,22 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
     {
         private readonly FriendlyFoodDbContext _context;
         private readonly IWebHostEnvironment _env;
+        private readonly ICloudinaryService _cloudinaryService;
 
         //連線字串的變數，demo時要改成demo主機的位置
         private const string ImageBaseUrl = "https://localhost:7164";
 
+        private const int MaxImageCount = 5;
+
         // 注入 IWebHostEnvironment 才能拿到 wwwroot 的實際路徑
-        public MarketProductController(FriendlyFoodDbContext context, IWebHostEnvironment env)
+        public MarketProductController(
+            FriendlyFoodDbContext context,
+            IWebHostEnvironment env,
+            ICloudinaryService cloudinaryService)
         {
             _context = context;
             _env = env;
+            _cloudinaryService = cloudinaryService;
         }
 
         // 消費者端：固定只拿架上商品（status = 1）
@@ -62,13 +70,56 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
+            // ===== Step 1：驗證產品分類跟圖片，全部通過才往下走 =====
+            var categoryExists = await _context.TMarketProductCategories
+                .AnyAsync(c => c.FCategoryNo == dto.ProductsCategoryNo);
+            if (!categoryExists)
+                return BadRequest(new { message = "商品分類不存在" });
+
+            var files = dto.Images?.ToList() ?? new List<IFormFile>();
+
+            if (files.Count > MaxImageCount)
+                return BadRequest(new { message = $"商品圖片最多 {MaxImageCount} 張" });
+
+            foreach (var file in files)
+            {
+                var error = _cloudinaryService.ValidateImage(file);
+                if (error != null)
+                    return BadRequest(new { message = error });
+            }
+
+            // ===== Step 2：上傳到 Cloudinary =====
+            // 用 List 記住「已經傳上去的」，失敗時才知道要清掉哪些
+
+            var uploadTasks = files
+                .Select(file => _cloudinaryService.UploadImageAsync(file, CloudinaryFolders.Products))
+                .ToList();
+
+            try
+            {
+                // 一次等全部完成
+                await Task.WhenAll(uploadTasks);
+            }
+            catch (Exception ex)
+            {
+                var succeededIds = uploadTasks
+                    .Where(t => t.IsCompletedSuccessfully)
+                    .Select(t => t.Result.PublicId);
+
+                await _cloudinaryService.DeleteImagesSafelyAsync(succeededIds);
+                return StatusCode(502, new { message = $"圖片上傳失敗：{ex.Message}" });
+            }
+
+            var uploaded = uploadTasks.Select(t => t.Result).ToList();
+
+            // ===== Step 3：寫入 DB（商品 + 圖片，一次 SaveChanges）=====
             // 之後換成從 Token 拿 sellerId
             int sellerId = 7;
 
             var product = new TMarketProduct
             {
                 FSellerId = sellerId,
-                FProductNo = $"P{Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper()}", // 先用這個暫時產生，之後再改規則
+                FProductNo = $"P{Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper()}",
                 FProductsCategoryNo = dto.ProductsCategoryNo,
                 FProductName = dto.ProductName,
                 FPrice = dto.Price,
@@ -79,56 +130,32 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                 FExpirationDate = dto.ExpirationDate,
                 FProductStatus = dto.ProductStatus,
                 FReportCount = 0,
+                FProductDate = DateTime.Now
             };
 
-            using var transaction = await _context.Database.BeginTransactionAsync();
+            // 掛在導覽屬性底下，EF 把新商品的 FProductId 填進每張圖片
+            for (int i = 0; i < uploaded.Count; i++)
+            {
+                product.TMarketProductImages.Add(new TMarketProductImage
+                {
+                    FImageUrl = uploaded[i].Url,
+                    FPublicId = uploaded[i].PublicId,
+                    FSortOrder = (short)i
+                });
+            }
+
+            _context.TMarketProducts.Add(product);
+
             try
             {
-                // Step 1：存商品主表
-                _context.TMarketProducts.Add(product);
+                // 一次 SaveChanges = 一個 transaction，商品和圖片要嘛都成功、要嘛都 rollback
                 await _context.SaveChangesAsync();
-
-                // Step 2：處理圖片檔案
-                if (dto.Images != null && dto.Images.Any())
-                {
-                    // 確認 wwwroot/ProductImageUploads 資料夾存在
-                    var uploadFolder = Path.Combine(_env.WebRootPath, "ProductImageUploads");
-                    if (!Directory.Exists(uploadFolder))
-                        Directory.CreateDirectory(uploadFolder);
-
-                    var images = new List<TMarketProductImage>();
-                    for (int i = 0; i < dto.Images.Count; i++)
-                    {
-                        var file = dto.Images[i];
-
-                        // 用 GUID 當檔名，避免重複；保留原始副檔名
-                        var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
-                        var filePath = Path.Combine(uploadFolder, fileName);
-
-                        // 把檔案存到 wwwroot/ProductImageUploads/
-                        using (var stream = new FileStream(filePath, FileMode.Create))
-                        {
-                            await file.CopyToAsync(stream);
-                        }
-
-                        images.Add(new TMarketProductImage
-                        {
-                            FProductId = product.FProductId,
-                            // DB 存相對路徑，之後換 Cloudinary 只改這裡
-                            FImageUrl = $"/ProductImageUploads/{fileName}",
-                            FSortOrder = (short)i
-                        });
-                    }
-
-                    _context.TMarketProductImages.AddRange(images);
-                    await _context.SaveChangesAsync();
-                }
-
-                await transaction.CommitAsync();
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                // DB 已自動 rollback，但 Cloudinary 不歸 DB 管 → 補償：刪掉這次上傳的圖
+                await _cloudinaryService.DeleteImagesSafelyAsync(uploaded.Select(u => u.PublicId));
+
                 // 把 inner exception 也一起回傳，除錯完再改回去
                 var message = ex.InnerException?.Message ?? ex.Message;
                 return StatusCode(500, $"新增商品失敗：{message}");
