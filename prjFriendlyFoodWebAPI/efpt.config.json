@@ -43,7 +43,15 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[tExternalLogin]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[tFoodMapFavorite]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tFoodMapIngredient]",
          "ObjectType": 0
       },
       {

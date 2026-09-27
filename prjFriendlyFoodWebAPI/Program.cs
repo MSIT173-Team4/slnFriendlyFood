@@ -14,8 +14,27 @@ using prjFriendlyFoodWebAPI.Services.FoodMap;
 using prjFriendlyFoodWebAPI.Services.FoodMap.Interfaces;
 using prjFriendlyFoodWebAPI.Services.Member;
 using System.Text;
+using CloudinaryDotNet;
+using prjFriendlyFoodWebAPI.Services.ImageUpload;
 
 var builder = WebApplication.CreateBuilder(args);
+
+//Cloudinary-Star
+//=================================
+var cloudName = builder.Configuration["Cloudinary:CloudName"];
+var apiKey = builder.Configuration["Cloudinary:ApiKey"];
+var apiSecret = builder.Configuration["Cloudinary:ApiSecret"];
+
+if (string.IsNullOrWhiteSpace(cloudName) || string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(apiSecret))
+    throw new InvalidOperationException("Cloudinary 設定未填寫，請檢查 appsettings.Development.json");
+
+var cloudinary = new Cloudinary(new Account(cloudName, apiKey, apiSecret));
+cloudinary.Api.Secure = true;   // 回傳 https 網址
+
+builder.Services.AddSingleton(cloudinary);
+builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
+//================================
+//Cloudinary-End
 
 builder.Services.AddCors(options =>
 {
