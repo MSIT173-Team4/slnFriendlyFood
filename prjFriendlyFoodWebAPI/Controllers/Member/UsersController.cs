@@ -3,10 +3,13 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Identity.Client;
+using Microsoft.IdentityModel.Tokens;
 using prjFriendlyFoodWebAPI.DTOs.Member;
 using prjFriendlyFoodWebAPI.Models;
 using prjFriendlyFoodWebAPI.Services.Member;
-
+using System.Security.Claims;
+using Google.Apis.Auth;
 namespace prjFriendlyFoodWebAPI.Controllers.Member
 {
     [Route("api/[controller]")]
@@ -16,8 +19,10 @@ namespace prjFriendlyFoodWebAPI.Controllers.Member
         private readonly UserServices _us;
         private readonly EncodeServices _es;
         private readonly TokenServices _ts;
-        public UsersController(UserServices userServices, EncodeServices encodeServices, TokenServices tokenServices)
+        private readonly IConfiguration _config;
+        public UsersController(UserServices userServices, EncodeServices encodeServices, TokenServices tokenServices,IConfiguration configuration)
         {
+            _config = configuration;
             _us = userServices;
             _es = encodeServices;
             _ts = tokenServices;
@@ -109,18 +114,237 @@ namespace prjFriendlyFoodWebAPI.Controllers.Member
                 Expires = DateTime.UtcNow.AddMinutes(15),
                 Path = "/"
             });
+            //var refreshToken = _ts.GernateTokenString();
+            //Response.Cookies.Append("refreshToken", await refreshToken, new CookieOptions
+            //{
+            //    HttpOnly = true,
+            //    Secure = true,
+            //    SameSite = SameSiteMode.None,
+            //    Expires = DateTime.UtcNow.AddDays(7),
+            //    Path = "/"
+            //});
             return Ok(new
             {
                 message = "Login success",
             });
         }
-        [HttpGet("Test")]
-        [Authorize]
-        public async Task<IActionResult> Test()
+        [HttpPost("Logout")]
+        public IActionResult Logout()
         {
-            var claims = User.Claims.Select(c => new { c.Type, c.Value });
-            TokenDataDTO data =await _ts.GetTokenData(User);
-            return Ok(data);
+            Response.Cookies.Append("token", "", new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.None,
+                Path = "/",
+                Expires = DateTimeOffset.UtcNow.AddDays(-1)
+            });
+
+            return Ok(new
+            {
+                message = "Logout success"
+            });
+        }
+        [HttpGet("CheckAuth")]
+        [Authorize]
+        public IActionResult CheckAuth()
+        {
+            return Ok(new
+            {
+                authenticated = true
+            });
+        }
+        [HttpGet("GetUserProfile")]
+        [Authorize]
+        public async Task<IActionResult> GetUserProfile()
+        {
+            TokenDataDTO data = await _ts.GetTokenData(User);
+            TUser user = await _us.GetUserById(Convert.ToInt32(data.UserId));
+            UserProfileDTO userData= new UserProfileDTO
+            {
+                Username = user.FUsername,
+                Email = user.FEmail,
+                Phone = user.FPhone,
+                IdNum = user.FIdNum,
+                Address = user.FAddress,
+                Image = user.FImage,
+                CreateTime = user.FCreateTime.ToString("yyyy-MM-dd HH:mm:ss"),
+                LastLogin = user.FLastLogin?.ToString("yyyy-MM-dd HH:mm:ss")
+            };
+
+            return Ok(userData);
+        }
+        [HttpGet("GetUserProfile/{id}")]
+        [Authorize]
+        public async Task<IActionResult> GetUserProfile(int id)
+        {
+            
+            TUser user = await _us.GetUserById(id);
+            UserProfileDTO userData = new UserProfileDTO
+            {
+                Username = user.FUsername,
+                Email = user.FEmail,
+                Phone = user.FPhone,
+                IdNum = user.FIdNum,
+                Address = user.FAddress,
+                Image = user.FImage,
+                CreateTime = user.FCreateTime.ToString("yyyy-MM-dd HH:mm:ss"),
+                LastLogin = user.FLastLogin?.ToString("yyyy-MM-dd HH:mm:ss")
+            };
+
+            return Ok(userData);
+        }
+        [Authorize]
+        [HttpGet("CurrentUser")]
+        public async Task<IActionResult> CurrentUser()
+        {
+            int userId = int.Parse(
+                User.FindFirst(ClaimTypes.NameIdentifier)!.Value
+            );
+
+            TUser? user = await _us.GetUserById(userId);
+
+            if (user == null)
+            {
+                return NotFound(new
+                {
+                    message = "User not found"
+                });
+            }
+
+            return Ok(new
+            {
+                userName = user.FUsername,
+                userImage = user.FImage
+            });
+        }
+        [HttpPost("GoogleLogin")]
+        public async Task<IActionResult> GoogleLogin(GoogleLoginDTO dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.Credential))
+            {
+                return BadRequest(new
+                {
+                    message = "缺少 Google Credential"
+                });
+            }
+
+            try
+            {
+
+                var settings =
+                    new GoogleJsonWebSignature.ValidationSettings
+                    {
+                        Audience = new[]
+                        {
+                    _config[
+                        "Authentication:Google:ClientId"
+                    ]!
+                        }
+                    };
+
+                var payload =
+                    await GoogleJsonWebSignature.ValidateAsync(
+                        dto.Credential,
+                        settings
+                    );
+
+                string googleUserId = payload.Subject;
+                TExternalLogin? externalLogin =
+                    await _us.GetExternalLogin(
+                        "Google",
+                        googleUserId
+                    );
+                if (externalLogin != null)
+                {
+                    TUser? user =
+                        await _us.GetUserById(externalLogin.FUserId);
+
+                    if (user == null)
+                    {
+                        return Unauthorized(new
+                        {
+                            message = "找不到綁定的會員"
+                        });
+                    }
+                    return await GoogleLoginSuccess(user);
+                    // 暫時測試
+                    //return Ok(new
+                    //{
+                    //    message = "Google 登入成功",
+                    //    userId = user.FId,
+                    //    username = user.FUsername
+                    //});
+                }
+                if (externalLogin == null)
+                {
+                    TUser? existingUser =await _us.GetUserByEmail(payload.Email);
+                    if (existingUser != null)
+                    {
+                        await _us.AddExternalLogin(existingUser.FId, "Google", payload.Subject);
+                        return await GoogleLoginSuccess(existingUser);
+                    }else if (existingUser == null)
+                    {
+
+                    }
+                } 
+                return Ok(new
+                {
+                    requiresRegistration = true,
+                    googleUserId = payload.Subject,
+                    email = payload.Email,
+                    name = payload.Name,
+                    picture = payload.Picture
+                });
+
+            }
+            catch (InvalidJwtException)
+            {
+                return Unauthorized(new
+                {
+                    message = "Google 登入驗證失敗"
+                });
+            }
+        }
+        private async Task<IActionResult> GoogleLoginSuccess(TUser user)
+        {
+            string token = await _ts.GenerateToken(user);
+
+            Response.Cookies.Append(
+                "token",
+                token,
+                new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = true,
+                    SameSite = SameSiteMode.None,
+                    Expires = DateTime.UtcNow.AddMinutes(15),
+                    Path = "/"
+                }
+            );
+
+            return Ok(new
+            {
+                message = "Google login success"
+            });
+        }
+        [Authorize]
+        [HttpPost("UploadProfileImage")]
+        public async Task<IActionResult> UploadProfileImage(IFormFile image)
+        {
+            int userId = int.Parse(
+                User.FindFirst(ClaimTypes.NameIdentifier)!.Value
+            );
+
+            string imageUrl = await _us.UploadImage(
+                image,
+                userId
+            );
+
+            return Ok(new
+            {
+                image = imageUrl
+            });
         }
     }
 }

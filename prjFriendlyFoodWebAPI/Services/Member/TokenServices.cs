@@ -3,6 +3,7 @@ using prjFriendlyFoodWebAPI.DTOs.Member;
 using prjFriendlyFoodWebAPI.Models;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace prjFriendlyFoodWebAPI.Services.Member
@@ -16,6 +17,7 @@ namespace prjFriendlyFoodWebAPI.Services.Member
             _config = configuration;
             _es = es;
         }
+        //jwt token(access token)
         public async Task<string> GenerateToken(TUser u)
         {
 
@@ -36,6 +38,15 @@ namespace prjFriendlyFoodWebAPI.Services.Member
             signingCredentials: creds
             );
             return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+        //other token(refresh token,email verify mail token and password change mail token)
+        public async Task<string> GernateTokenString()
+        {
+            var bytes = new byte[32];
+            var rng = RandomNumberGenerator.Create();
+            rng.GetBytes(bytes);
+            var token = Convert.ToHexString(bytes);
+            return token;
         }
         public async Task<TokenDataDTO> GetTokenData(ClaimsPrincipal user)
         {
