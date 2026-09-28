@@ -291,7 +291,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TExternalLogin>(entity =>
         {
-            entity.HasKey(e => e.FId).HasName("PK__tExterna__D9F8227C43F859C8");
+            entity.HasKey(e => e.FId).HasName("PK__tExterna__D9F8227C4287A4EB");
 
             entity.ToTable("tExternalLogin");
 
@@ -344,7 +344,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TFoodMapIngredient>(entity =>
         {
-            entity.HasKey(e => e.FIngredientId).HasName("PK__tFoodMap__3A47A045DD6306BA");
+            entity.HasKey(e => e.FIngredientId).HasName("PK__tFoodMap__3A47A0459BCA0413");
 
             entity.ToTable("tFoodMapIngredient");
 
@@ -542,12 +542,16 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasPrecision(0)
                 .HasDefaultValueSql("(sysdatetime())", "DF_tFoodMapRecommendationCampaign_fCreatedTime")
                 .HasColumnName("fCreatedTime");
-            entity.Property(e => e.FEndDate).HasColumnName("fEndDate");
+            entity.Property(e => e.FEndDate)
+                .HasPrecision(0)
+                .HasColumnName("fEndDate");
             entity.Property(e => e.FIsActive)
                 .HasDefaultValue(true, "DF_tFoodMapRecommendationCampaign_fIsActive")
                 .HasColumnName("fIsActive");
             entity.Property(e => e.FPriority).HasColumnName("fPriority");
-            entity.Property(e => e.FStartDate).HasColumnName("fStartDate");
+            entity.Property(e => e.FStartDate)
+                .HasPrecision(0)
+                .HasColumnName("fStartDate");
             entity.Property(e => e.FTitle)
                 .IsRequired()
                 .HasMaxLength(100)
@@ -1446,7 +1450,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TPostBookmark>(entity =>
         {
-            entity.HasKey(e => e.FBookmarkId).HasName("PK__tPostBoo__0E20EC4F4C60039F");
+            entity.HasKey(e => e.FBookmarkId).HasName("PK__tPostBoo__0E20EC4F8F0FC010");
 
             entity.ToTable("tPostBookmarks");
 

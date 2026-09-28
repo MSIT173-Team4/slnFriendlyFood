@@ -17,9 +17,9 @@ public partial class TFoodMapRecommendationCampaign
 
     public int FPriority { get; set; }
 
-    public DateOnly? FStartDate { get; set; }
+    public DateTime? FStartDate { get; set; }
 
-    public DateOnly? FEndDate { get; set; }
+    public DateTime? FEndDate { get; set; }
 
     public bool FIsActive { get; set; }
 
