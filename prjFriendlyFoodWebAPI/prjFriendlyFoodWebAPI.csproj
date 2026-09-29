@@ -35,7 +35,6 @@
 
   <ItemGroup>
     <Folder Include="wwwroot\image\Member\" />
-    <Folder Include="wwwroot\ProductImageUploads\" />
   </ItemGroup>
 
 </Project>
