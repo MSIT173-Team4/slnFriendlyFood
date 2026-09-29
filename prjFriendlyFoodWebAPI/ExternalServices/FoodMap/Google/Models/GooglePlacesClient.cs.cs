@@ -30,6 +30,17 @@ namespace prjFriendlyFoodWebAPI.ExternalServices.FoodMap.Google.Models
             "nationalPhoneNumber," +
             "primaryType";
 
+        // 文字搜尋不拿電話，少一個欄位可以壓低計費等級
+        private const string TextSearchFieldMask =
+            "places.id," +
+            "places.displayName," +
+            "places.formattedAddress," +
+            "places.location," +
+            "places.rating," +
+            "places.userRatingCount," +
+            "places.businessStatus," +
+            "places.primaryType";
+
         public GooglePlacesClient(
             HttpClient httpClient,
             IOptions<GooglePlacesOptions> options)
@@ -142,6 +153,57 @@ namespace prjFriendlyFoodWebAPI.ExternalServices.FoodMap.Google.Models
                     cancellationToken:
                         cancellationToken);
         }
+
+        public async Task<List<GooglePlace>> SearchTextAsync(
+            string textQuery,
+            double? latitude = null,
+            double? longitude = null,
+            double? radiusMeters = null,
+            int pageSize = 10,
+            CancellationToken cancellationToken = default)
+        {
+            // 用 Dictionary 組 body：沒有座標時整個 locationBias 就不送，
+            // 避免送出 "locationBias": null 給 Google
+            var body = new Dictionary<string, object>
+            {
+                ["textQuery"] = textQuery,
+                ["languageCode"] = "zh-TW",
+                ["regionCode"] = "TW",
+                ["pageSize"] = Math.Clamp(pageSize, 1, 20)
+            };
+
+            if (latitude.HasValue && longitude.HasValue)
+            {
+                body["locationBias"] = new
+                {
+                    circle = new
+                    {
+                        center = new
+                        {
+                            latitude = latitude.Value,
+                            longitude = longitude.Value
+                        },
+                        radius = Math.Clamp(radiusMeters ?? 5000, 1, 50000)
+                    }
+                };
+            }
+
+            using var httpRequest = new HttpRequestMessage(
+                HttpMethod.Post, "/v1/places:searchText");
+
+            httpRequest.Headers.Add("X-Goog-Api-Key", _options.ApiKey);
+            httpRequest.Headers.Add("X-Goog-FieldMask", TextSearchFieldMask);
+            httpRequest.Content = JsonContent.Create(body);
+
+            using var response = await _httpClient.SendAsync(httpRequest, cancellationToken);
+
+            response.EnsureSuccessStatusCode();
+
+            // Text Search 回傳格式跟 Nearby Search 一樣是 { "places": [...] }
+            var result = await response.Content
+                .ReadFromJsonAsync<GoogleNearbySearchResponseModel>(cancellationToken: cancellationToken);
+
+            return result?.Places ?? [];
+        }
     }
 }
-
