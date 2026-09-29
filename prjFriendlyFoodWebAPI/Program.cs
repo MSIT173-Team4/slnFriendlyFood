@@ -1,8 +1,7 @@
+using CloudinaryDotNet;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.EntityFrameworkCore;
-using prjFriendlyFoodWebAPI.Models;
-
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -10,12 +9,13 @@ using prjFriendlyFoodWebAPI.Extensions;
 using prjFriendlyFoodWebAPI.ExternalServices.FoodMap.Google.Interfaces;
 using prjFriendlyFoodWebAPI.ExternalServices.FoodMap.Google.Models;
 using prjFriendlyFoodWebAPI.Models;
+using prjFriendlyFoodWebAPI.Models;
 using prjFriendlyFoodWebAPI.Services.FoodMap;
 using prjFriendlyFoodWebAPI.Services.FoodMap.Interfaces;
+using prjFriendlyFoodWebAPI.Services.ImageUpload;
+using prjFriendlyFoodWebAPI.Services.Market;
 using prjFriendlyFoodWebAPI.Services.Member;
 using System.Text;
-using CloudinaryDotNet;
-using prjFriendlyFoodWebAPI.Services.ImageUpload;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,6 +35,8 @@ builder.Services.AddSingleton(cloudinary);
 builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
 //================================
 //Cloudinary-End
+
+builder.Services.AddScoped<ICouponService, CouponService>();
 
 builder.Services.AddCors(options =>
 {
