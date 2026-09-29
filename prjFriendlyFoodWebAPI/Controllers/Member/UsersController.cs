@@ -1,15 +1,17 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Google.Apis.Auth;
+using Google.Protobuf.Collections;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Client;
 using Microsoft.IdentityModel.Tokens;
+using Newtonsoft.Json.Linq;
 using prjFriendlyFoodWebAPI.DTOs.Member;
 using prjFriendlyFoodWebAPI.Models;
 using prjFriendlyFoodWebAPI.Services.Member;
 using System.Security.Claims;
-using Google.Apis.Auth;
 namespace prjFriendlyFoodWebAPI.Controllers.Member
 {
     [Route("api/[controller]")]
@@ -20,8 +22,12 @@ namespace prjFriendlyFoodWebAPI.Controllers.Member
         private readonly EncodeServices _es;
         private readonly TokenServices _ts;
         private readonly IConfiguration _config;
-        public UsersController(UserServices userServices, EncodeServices encodeServices, TokenServices tokenServices,IConfiguration configuration)
+        private readonly EmailServices _email;
+        private readonly IdCardProofingServices _icps;
+        public UsersController(IdCardProofingServices icps,EmailServices email, UserServices userServices, EncodeServices encodeServices, TokenServices tokenServices, IConfiguration configuration)
         {
+            _icps = icps;
+            _email = email;
             _config = configuration;
             _us = userServices;
             _es = encodeServices;
@@ -48,17 +54,36 @@ namespace prjFriendlyFoodWebAPI.Controllers.Member
             }
             string password = await _es.HashPassword(u.fPassword);
             TUser user = await _us.AddUser(u, password);
+            string token=await _ts.GernateTokenString(user.FId, "EmailVerification");
+            string verifyUrl =
+            $"http://localhost:4200/verifyemail?token={token}";
+
+                    string body = $"""
+            <h2>FriendlyFood 信箱驗證</h2>
+
+            <p>感謝您註冊 FriendlyFood。</p>
+
+            <p>請點擊下面按鈕完成 Email 驗證：</p>
+
+            <a href="{verifyUrl}">
+                驗證 Email
+            </a>
+
+            <p>此連結將在 30 分鐘後失效。</p>
+            """;
+            _email.SendEmailAsync(user.FEmail, "FriendlyFood Email Verification",body 
+                );
             return Ok(new
             {
-                message = "User registered successfully"
+                message = "User registered successfully,Verification mail had sended to your Email."
             });
         }
         [HttpPost("Login")]
         public async Task<IActionResult> Login(UserLoginDTO u)
         {
 
-            
-           
+
+
             if (string.IsNullOrEmpty(u.UserName) && string.IsNullOrEmpty(u.Email))
             {
                 return BadRequest(new
@@ -160,26 +185,6 @@ namespace prjFriendlyFoodWebAPI.Controllers.Member
         {
             TokenDataDTO data = await _ts.GetTokenData(User);
             TUser user = await _us.GetUserById(Convert.ToInt32(data.UserId));
-            UserProfileDTO userData= new UserProfileDTO
-            {
-                Username = user.FUsername,
-                Email = user.FEmail,
-                Phone = user.FPhone,
-                IdNum = user.FIdNum,
-                Address = user.FAddress,
-                Image = user.FImage,
-                CreateTime = user.FCreateTime.ToString("yyyy-MM-dd HH:mm:ss"),
-                LastLogin = user.FLastLogin?.ToString("yyyy-MM-dd HH:mm:ss")
-            };
-
-            return Ok(userData);
-        }
-        [HttpGet("GetUserProfile/{id}")]
-        [Authorize]
-        public async Task<IActionResult> GetUserProfile(int id)
-        {
-            
-            TUser user = await _us.GetUserById(id);
             UserProfileDTO userData = new UserProfileDTO
             {
                 Username = user.FUsername,
@@ -189,10 +194,44 @@ namespace prjFriendlyFoodWebAPI.Controllers.Member
                 Address = user.FAddress,
                 Image = user.FImage,
                 CreateTime = user.FCreateTime.ToString("yyyy-MM-dd HH:mm:ss"),
-                LastLogin = user.FLastLogin?.ToString("yyyy-MM-dd HH:mm:ss")
+
             };
 
             return Ok(userData);
+        }
+        [HttpGet("GetUserProfile/{id}")]
+        [Authorize]
+        public async Task<IActionResult> GetUserProfile(int id)
+        {
+
+            TUser user = await _us.GetUserById(id);
+            UserProfileDTO userData = new UserProfileDTO
+            {
+                Lastname = user.FLastName,
+                Firstname = user.FFirstName,
+                Username = user.FUsername,
+                Email = user.FEmail,
+                Phone = user.FPhone,
+                IdNum = user.FIdNum,
+                Address = user.FAddress,
+                Image = user.FImage,
+                CreateTime = user.FCreateTime.ToString("yyyy-MM-dd HH:mm:ss"),
+
+            };
+
+            return Ok(userData);
+        }
+        [HttpGet("CheckSeller")]
+        [Authorize]
+        public async Task<IActionResult> CheckSeller()
+        {
+            TokenDataDTO data = await _ts.GetTokenData(User);
+            TUser user = await _us.GetUserById(Convert.ToInt32(data.UserId));
+            bool exist = await _us.CheckSeller(user.FId);
+            return Ok(new
+            {
+                isSeller = exist
+            });
         }
         [Authorize]
         [HttpGet("CurrentUser")]
@@ -278,16 +317,16 @@ namespace prjFriendlyFoodWebAPI.Controllers.Member
                 }
                 if (externalLogin == null)
                 {
-                    TUser? existingUser =await _us.GetUserByEmail(payload.Email);
+                    TUser? existingUser = await _us.GetUserByEmail(payload.Email);
                     if (existingUser != null)
                     {
                         await _us.AddExternalLogin(existingUser.FId, "Google", payload.Subject);
                         return await GoogleLoginSuccess(existingUser);
-                    }else if (existingUser == null)
+                    } else if (existingUser == null)
                     {
 
                     }
-                } 
+                }
                 return Ok(new
                 {
                     requiresRegistration = true,
@@ -329,22 +368,137 @@ namespace prjFriendlyFoodWebAPI.Controllers.Member
             });
         }
         [Authorize]
-        [HttpPost("UploadProfileImage")]
-        public async Task<IActionResult> UploadProfileImage(IFormFile image)
+        [HttpPost("EditProfile")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> EditProfile(
+        [FromForm] EditProfileDTO e,
+        [FromForm] IFormFile? img)
         {
-            int userId = int.Parse(
-                User.FindFirst(ClaimTypes.NameIdentifier)!.Value
-            );
+            string? userId =
+                User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            string imageUrl = await _us.UploadImage(
-                image,
-                userId
+            if (!int.TryParse(userId, out int uid))
+            {
+                return Unauthorized();
+            }
+
+            try
+            {
+                await _us.UpdateProfile(e, uid);
+
+                if (img != null && img.Length > 0)
+                {
+                    await _us.UploadImage(img, uid);
+                }
+
+                return Ok(new
+                {
+                    message = "個人資料更新成功"
+                });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new
+                {
+                    message = ex.Message
+                });
+            }
+        }
+        [HttpGet("TestEmail")]
+        public async Task<IActionResult> TestEmail()
+        {
+            await _email.SendEmailAsync(
+                "howru6948@gmail.com",
+                "FriendlyFood 測試信",
+                "<h2>寄信成功</h2><p>SMTP 設定正常</p>"
             );
 
             return Ok(new
             {
-                image = imageUrl
+                message = "測試信已寄出"
             });
         }
+        [HttpGet("VerifyEmail/{token}")]
+        public async Task<IActionResult> VerifyEmail(string token)
+        {
+            try
+            {
+                await _email.EmailVerify(token);
+                return Ok(new {
+                    message="Email 驗證成功",
+                });
+
+            }
+            catch(Exception ex)
+            {
+                return BadRequest(new
+                {
+                    message = ex.Message
+                });
+            }
+        }
+        [HttpPost("TestIdCardOcr")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> TestIdCardOcr(
+        [FromForm] IFormFile idCard)
+        {
+            if (idCard == null || idCard.Length == 0)
+            {
+                return BadRequest(new
+                {
+                    message = "請上傳身分證圖片"
+                });
+            }
+
+            var result =
+            await _icps.ReadTextAsync(idCard);
+
+            return Ok(result);
+        }
+        [Authorize]
+        [HttpPost("Apply")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> Apply([FromForm] IFormFile idcard, [FromForm] ApplyDTO dto)
+        {
+            if (idcard == null || idcard.Length == 0)
+            {
+                return BadRequest(new
+                {
+                    message = "請上傳身分證圖片"
+                });
+            }
+            int userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+            var ocr = await _icps.ReadTextAsync(idcard);
+            string formName =$"{dto.LastName}{dto.FirstName}".Replace(" ", "");
+
+            string formId =dto.IdNumber.Trim().ToUpperInvariant();
+            bool matched =
+            ocr.Name == formName &&
+            ocr.IdNumber == formId;
+            if (!matched)
+            {
+                return BadRequest(new
+                {
+                    message = "身分資料驗證失敗"
+                });
+            }
+            try {
+                await _us.AddSeller(userId, dto.StoreName, dto.StoreDescription);
+            }
+            catch(Exception e)
+            {
+                return BadRequest(new
+                {
+                    message = "申請失敗",
+                    error = e.Message,
+                    innerError = e.InnerException?.Message
+                });
+            }
+            return Ok(new
+            {
+                message = "商家建立成功"
+            });
+        }
+
     }
 }

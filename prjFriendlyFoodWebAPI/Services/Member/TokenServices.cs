@@ -12,9 +12,11 @@ namespace prjFriendlyFoodWebAPI.Services.Member
     {
         private readonly IConfiguration _config;
         private readonly EncodeServices _es;
-        public TokenServices(IConfiguration configuration, EncodeServices es)
+        private readonly FriendlyFoodDbContext _db;
+        public TokenServices(IConfiguration configuration, EncodeServices es,FriendlyFoodDbContext db)
         {
             _config = configuration;
+            _db = db;
             _es = es;
         }
         //jwt token(access token)
@@ -40,12 +42,18 @@ namespace prjFriendlyFoodWebAPI.Services.Member
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
         //other token(refresh token,email verify mail token and password change mail token)
-        public async Task<string> GernateTokenString()
+        public async Task<string> GernateTokenString(int id,string usedAt)
         {
-            var bytes = new byte[32];
-            var rng = RandomNumberGenerator.Create();
-            rng.GetBytes(bytes);
+            TEmailVerification tokenData = new TEmailVerification();
+            
+            byte[] bytes = RandomNumberGenerator.GetBytes(32);
             var token = Convert.ToHexString(bytes);
+            tokenData.FUserId = id;
+            tokenData.FToken = token;
+            tokenData.FType = usedAt;
+            tokenData.FExpireAt = DateTime.UtcNow.AddMinutes(30);
+            _db.TEmailVerifications.Add(tokenData);
+            await _db.SaveChangesAsync();
             return token;
         }
         public async Task<TokenDataDTO> GetTokenData(ClaimsPrincipal user)
