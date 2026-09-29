@@ -64,7 +64,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
 
         [HttpPost]
         [DisableRequestSizeLimit]
-        [RequestFormLimits(MultipartBodyLengthLimit = 52428800)] // 50MB
+        [RequestFormLimits(MultipartBodyLengthLimit = 30 * 1024 * 1024)] // 30MB(5 張 × 5MB + 餘裕)
         public async Task<IActionResult> CreateProduct([FromForm] MarketProductCreateDto dto)
         {
             if (!ModelState.IsValid)
@@ -481,7 +481,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         // 賣家更新商品（精細圖片處理）
         [HttpPut("seller/{id:int}")]
         [DisableRequestSizeLimit]
-        [RequestFormLimits(MultipartBodyLengthLimit = 52428800)]
+        [RequestFormLimits(MultipartBodyLengthLimit = 30 * 1024 * 1024)] // 30MB(5 張 × 5MB + 餘裕)
         public async Task<IActionResult> UpdateProduct(int id, [FromForm] MarketProductUpdateDto dto)
         {
             var product = await _context.TMarketProducts
@@ -491,96 +491,145 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
             if (product == null)
                 return NotFound(new { message = "商品不存在或無權限" });
 
-            using var transaction = await _context.Database.BeginTransactionAsync();
+            // ===== Step 1：驗證（全部通過才開始上傳）=====
+            var categoryExists = await _context.TMarketProductCategories
+                .AnyAsync(c => c.FCategoryNo == dto.ProductsCategoryNo);
+            if (!categoryExists)
+                return BadRequest(new { message = "商品分類不存在" });
+
+            var deleteIds = dto.DeleteImageIds?.ToList() ?? new List<int>();
+
+            // 傳入不屬於此商品的圖片 Id → 明確回報，而不是安靜地忽略
+            var ownedImageIds = product.TMarketProductImages
+                .Select(img => img.FProductImageId)
+                .ToHashSet();
+            var invalidIds = deleteIds.Where(did => !ownedImageIds.Contains(did)).ToList();
+            if (invalidIds.Any())
+                return BadRequest(new { message = $"以下圖片不屬於此商品：{string.Join(", ", invalidIds)}" });
+
+            var newFiles = dto.NewImages?.ToList() ?? new List<IFormFile>();
+
+            // 要看「更新後」的總張數：保留的舊圖 + 新增的圖
+            var remainingCount = product.TMarketProductImages
+                .Count(img => !deleteIds.Contains(img.FProductImageId));
+            if (remainingCount + newFiles.Count > MaxImageCount)
+                return BadRequest(new { message = $"商品圖片最多 {MaxImageCount} 張" });
+
+            foreach (var file in newFiles)
+            {
+                var error = _cloudinaryService.ValidateImage(file);
+                if (error != null)
+                    return BadRequest(new { message = error });
+            }
+
+            // ===== Step 2：同時上傳新圖 =====
+            var uploadTasks = newFiles
+                .Select(file => _cloudinaryService.UploadImageAsync(file, CloudinaryFolders.Products))
+                .ToList();
+
             try
             {
-                // 更新主表
-                product.FProductName = dto.ProductName;
-                product.FProductsCategoryNo = dto.ProductsCategoryNo;
-                product.FPrice = dto.Price;
-                product.FStock = dto.Stock;
-                product.FBrandOrOrigin = dto.BrandOrOrigin;
-                product.FDescription = dto.Description;
-                product.FManufacturingDate = dto.ManufacturingDate;
-                product.FExpirationDate = dto.ExpirationDate;
-
-                //更新狀態
-                if (dto.ProductStatus.HasValue)
-                    product.FProductStatus = dto.ProductStatus.Value;
-
-                // 刪除指定圖片
-                if (dto.DeleteImageIds != null && dto.DeleteImageIds.Any())
-                {
-                    var toDelete = product.TMarketProductImages
-                        .Where(img => dto.DeleteImageIds.Contains(img.FProductImageId))
-                        .ToList();
-
-                    foreach (var img in toDelete)
-                    {
-                        // 刪除實體檔案
-                        var filePath = Path.Combine(_env.WebRootPath,
-                            img.FImageUrl.TrimStart('/'));
-                        if (System.IO.File.Exists(filePath))
-                            System.IO.File.Delete(filePath);
-
-                        _context.TMarketProductImages.Remove(img);
-                    }
-                }
-
-                // 新增圖片
-                if (dto.NewImages != null && dto.NewImages.Any())
-                {
-                    var uploadFolder = Path.Combine(_env.WebRootPath, "ProductImageUploads");
-                    if (!Directory.Exists(uploadFolder))
-                        Directory.CreateDirectory(uploadFolder);
-
-                    // 現有最大 sortOrder
-                    var maxSort = product.TMarketProductImages
-                        .Where(img => !(dto.DeleteImageIds != null &&
-                                         dto.DeleteImageIds.Contains(img.FProductImageId)))
-                        .Select(img => (int)img.FSortOrder)
-                        .DefaultIfEmpty(-1)
-                        .Max();
-
-                    for (int i = 0; i < dto.NewImages.Count; i++)
-                    {
-                        var file = dto.NewImages[i];
-                        var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
-                        var filePath = Path.Combine(uploadFolder, fileName);
-
-                        using var stream = new FileStream(filePath, FileMode.Create);
-                        await file.CopyToAsync(stream);
-
-                        _context.TMarketProductImages.Add(new TMarketProductImage
-                        {
-                            FProductId = product.FProductId,
-                            FImageUrl = $"/ProductImageUploads/{fileName}",
-                            FSortOrder = (short)(maxSort + 1 + i)
-                        });
-                    }
-                }
-
-                // 更新圖片排序
-                if (dto.ImageOrder != null && dto.ImageOrder.Any())
-                {
-                    var imageMap = product.TMarketProductImages
-                        .ToDictionary(img => img.FProductImageId);
-
-                    for (int i = 0; i < dto.ImageOrder.Count; i++)
-                    {
-                        if (imageMap.TryGetValue(dto.ImageOrder[i], out var img))
-                            img.FSortOrder = (short)i;
-                    }
-                }
-
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                await Task.WhenAll(uploadTasks);
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                var succeededIds = uploadTasks
+                    .Where(t => t.IsCompletedSuccessfully)
+                    .Select(t => t.Result.PublicId);
+
+                await _cloudinaryService.DeleteImagesSafelyAsync(succeededIds);
+                return StatusCode(502, new { message = $"圖片上傳失敗：{ex.Message}" });
+            }
+
+            var uploaded = uploadTasks.Select(t => t.Result).ToList();
+
+            // ===== Step 3：更新 DB（一次 SaveChanges）=====
+            // 更新主表
+            product.FProductName = dto.ProductName;
+            product.FProductsCategoryNo = dto.ProductsCategoryNo;
+            product.FPrice = dto.Price;
+            product.FStock = dto.Stock;
+            product.FBrandOrOrigin = dto.BrandOrOrigin;
+            product.FDescription = dto.Description;
+            product.FManufacturingDate = dto.ManufacturingDate;
+            product.FExpirationDate = dto.ExpirationDate;
+
+            if (dto.ProductStatus.HasValue)
+                product.FProductStatus = dto.ProductStatus.Value;
+
+            // 移除圖片「資料」，實體檔案先不刪：DB 失敗會 rollback，檔案刪了卻救不回來
+            // 用 product 底下的圖片去篩選，別人商品的圖片 Id 傳進來也刪不到
+            var toDelete = product.TMarketProductImages
+                .Where(img => deleteIds.Contains(img.FProductImageId))
+                .ToList();
+
+            // 先記下要刪的實體位置，Remove 之後這些物件就不在 product 底下了
+            var cloudinaryIdsToDelete = toDelete
+                .Where(img => img.FPublicId != null)
+                .Select(img => img.FPublicId!)
+                .ToList();
+            var localPathsToDelete = toDelete
+                .Where(img => img.FPublicId == null)
+                .Select(img => img.FImageUrl)
+                .ToList();
+
+            foreach (var img in toDelete)
+                _context.TMarketProductImages.Remove(img);
+
+            // 新圖接在保留圖片的最後面
+            var maxSort = product.TMarketProductImages
+                .Where(img => !deleteIds.Contains(img.FProductImageId))
+                .Select(img => (int)img.FSortOrder)
+                .DefaultIfEmpty(-1)
+                .Max();
+
+            for (int i = 0; i < uploaded.Count; i++)
+            {
+                product.TMarketProductImages.Add(new TMarketProductImage
+                {
+                    FImageUrl = uploaded[i].Url,
+                    FPublicId = uploaded[i].PublicId,
+                    FSortOrder = (short)(maxSort + 1 + i)
+                });
+            }
+
+            // 更新既有圖片的排序
+            if (dto.ImageOrder != null && dto.ImageOrder.Any())
+            {
+                var imageMap = product.TMarketProductImages
+                    .Where(img => img.FProductImageId != 0) // 新圖還沒有 Id，排除
+                    .ToDictionary(img => img.FProductImageId);
+
+                for (int i = 0; i < dto.ImageOrder.Count; i++)
+                {
+                    if (imageMap.TryGetValue(dto.ImageOrder[i], out var img))
+                        img.FSortOrder = (short)i;
+                }
+            }
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                // DB 已 rollback，舊圖都還在；只要清掉這次新上傳的圖
+                await _cloudinaryService.DeleteImagesSafelyAsync(uploaded.Select(u => u.PublicId));
+
                 var message = ex.InnerException?.Message ?? ex.Message;
                 return StatusCode(500, $"更新商品失敗：{message}");
+            }
+
+            // ===== Step 4：DB 成功後，才刪除舊圖的實體 =====
+            // 這裡失敗不回傳錯誤：DB 已經更新成功，最壞情況只是留下孤兒檔案（會記 log）
+            await _cloudinaryService.DeleteImagesSafelyAsync(cloudinaryIdsToDelete);
+
+            // 還沒搬到 Cloudinary 的舊圖（第 5 步搬移完成後，這段在第 6 步移除）
+            foreach (var relativePath in localPathsToDelete)
+            {
+                var filePath = Path.Combine(_env.WebRootPath, relativePath.TrimStart('/'));
+                if (System.IO.File.Exists(filePath))
+                    System.IO.File.Delete(filePath);
             }
 
             return Ok(new { message = "更新成功" });
