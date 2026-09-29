@@ -10,7 +10,6 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
     public class ShoppingCartController : ControllerBase
     {
         private readonly FriendlyFoodDbContext _context;
-        private const string ImageBaseUrl = "https://localhost:7164";
 
         public ShoppingCartController(FriendlyFoodDbContext context)
         {
@@ -38,7 +37,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                     Stock = c.FProduct.FStock,
                     ImageUrl = c.FProduct.TMarketProductImages
                         .OrderBy(img => img.FSortOrder)
-                        .Select(img => ImageBaseUrl + img.FImageUrl)
+                        .Select(img => img.FImageUrl)
                         .FirstOrDefault()
                 })
                 .ToListAsync();

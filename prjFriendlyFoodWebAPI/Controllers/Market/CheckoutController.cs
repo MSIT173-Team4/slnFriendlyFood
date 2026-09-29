@@ -404,9 +404,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                         ProductName = d.FProduct?.FProductName ?? string.Empty,
                         ImageUrl = d.FProduct?.TMarketProductImages
                                     .OrderBy(img => img.FSortOrder)
-                                    .FirstOrDefault()?.FImageUrl is string url
-                                    ? $"{ImageBaseUrl}{url}"
-                                    : null,
+                                    .FirstOrDefault()?.FImageUrl,
                         Quantity = d.FQuantity,
                         UnitPrice = d.FUnitPrice,
                         LineTotal = d.FUnitPrice * d.FQuantity

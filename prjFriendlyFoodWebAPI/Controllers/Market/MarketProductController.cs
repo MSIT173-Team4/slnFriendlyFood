@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using prjFriendlyFoodWebAPI.DTOs.Market;
@@ -14,11 +13,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
     public class MarketProductController : ControllerBase
     {
         private readonly FriendlyFoodDbContext _context;
-        private readonly IWebHostEnvironment _env;
         private readonly ICloudinaryService _cloudinaryService;
-
-        //連線字串的變數，demo時要改成demo主機的位置
-        private const string ImageBaseUrl = "https://localhost:7164";
 
         private const int MaxImageCount = 5;
 
@@ -29,7 +24,6 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
             ICloudinaryService cloudinaryService)
         {
             _context = context;
-            _env = env;
             _cloudinaryService = cloudinaryService;
         }
 
@@ -54,7 +48,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                     ProductStatus = p.FProductStatus,
                     ImageUrls = p.TMarketProductImages
              .OrderBy(img => img.FSortOrder)
-             .Select(img => ImageBaseUrl + img.FImageUrl)
+             .Select(img => img.FImageUrl)
              .ToList()
                 })
                 .ToListAsync();
@@ -229,7 +223,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                     ProductStatus = p.FProductStatus,
                     ImageUrls = p.TMarketProductImages
                                  .OrderBy(img => img.FSortOrder)
-                                 .Select(img => ImageBaseUrl + img.FImageUrl)
+                                 .Select(img => img.FImageUrl)
                                  .ToList()
                 })
                 .ToListAsync();
@@ -260,7 +254,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                     ProductStatus = p.FProductStatus,
                     ImageUrls = p.TMarketProductImages
                         .OrderBy(img => img.FSortOrder)
-                        .Select(img => ImageBaseUrl + img.FImageUrl)
+                        .Select(img => img.FImageUrl)
                         .ToList(),
 
                     // 評論統計：從 tMarketProductReview 計算
@@ -396,7 +390,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                     ProductStatus = p.FProductStatus,
                     ImageUrls = p.TMarketProductImages
                         .OrderBy(img => img.FSortOrder)
-                        .Select(img => ImageBaseUrl + img.FImageUrl)
+                        .Select(img => img.FImageUrl)
                         .ToList(),
                     SalesLast30Days = 0
                 })
@@ -465,7 +459,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                         .Select(img => new ProductImageDto
                         {
                             ImageId = img.FProductImageId,
-                            ImageUrl = ImageBaseUrl + img.FImageUrl,
+                            ImageUrl = img.FImageUrl,
                             SortOrder = img.FSortOrder
                         })
                         .ToList()
@@ -568,10 +562,6 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                 .Where(img => img.FPublicId != null)
                 .Select(img => img.FPublicId!)
                 .ToList();
-            var localPathsToDelete = toDelete
-                .Where(img => img.FPublicId == null)
-                .Select(img => img.FImageUrl)
-                .ToList();
 
             foreach (var img in toDelete)
                 _context.TMarketProductImages.Remove(img);
@@ -620,18 +610,8 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                 return StatusCode(500, $"更新商品失敗：{message}");
             }
 
-            // ===== Step 4：DB 成功後，才刪除舊圖的實體 =====
-            // 這裡失敗不回傳錯誤：DB 已經更新成功，最壞情況只是留下孤兒檔案（會記 log）
+            // ===== Step 4：刪除圖片 =====
             await _cloudinaryService.DeleteImagesSafelyAsync(cloudinaryIdsToDelete);
-
-            // 還沒搬到 Cloudinary 的舊圖（第 5 步搬移完成後，這段在第 6 步移除）
-            foreach (var relativePath in localPathsToDelete)
-            {
-                var filePath = Path.Combine(_env.WebRootPath, relativePath.TrimStart('/'));
-                if (System.IO.File.Exists(filePath))
-                    System.IO.File.Delete(filePath);
-            }
-
             return Ok(new { message = "更新成功" });
         }
 
