@@ -7,6 +7,8 @@ public partial class TUser
 {
     public int FId { get; set; }
 
+    public string? FLastName { get; set; }
+    public string? FFirstName { get; set; }
     public string FUsername { get; set; } = null!;
 
     public string FPassword { get; set; } = null!;

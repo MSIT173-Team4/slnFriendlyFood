@@ -24,7 +24,7 @@ public partial class FriendlyFoodDbContext : DbContext
     public virtual DbSet<TConversationMessagesTable> TConversationMessagesTables { get; set; }
 
     public virtual DbSet<TConversationsTable> TConversationsTables { get; set; }
-
+    public virtual DbSet<TEmailVerification> TEmailVerifications { get; set; }
     public virtual DbSet<TFoodMapFavorite> TFoodMapFavorites { get; set; }
 
     public virtual DbSet<TFoodMapIngredient> TFoodMapIngredients { get; set; }
@@ -119,6 +119,45 @@ public partial class FriendlyFoodDbContext : DbContext
     public virtual DbSet<TExternalLogin> TExternalLogins { get; set; }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<TEmailVerification>(entity =>
+        {
+            entity.HasKey(e => e.FId);
+
+            entity.ToTable("tEmailVerification");
+
+            entity.HasIndex(e => e.FToken)
+                .IsUnique();
+
+            entity.Property(e => e.FId)
+                .HasColumnName("fId");
+
+            entity.Property(e => e.FUserId)
+                .HasColumnName("fUser_Id");
+
+            entity.Property(e => e.FToken)
+                .HasMaxLength(255)
+                .IsUnicode(false)
+                .HasColumnName("fToken");
+
+            entity.Property(e => e.FType)
+                .HasMaxLength(50)
+                .IsUnicode(false)
+                .HasColumnName("fType");
+
+            entity.Property(e => e.FExpireAt)
+                .HasColumnType("datetime2(7)")
+                .HasColumnName("fExpire_at");
+
+            entity.Property(e => e.FUsed)
+                .HasDefaultValue(false)
+                .HasColumnName("fUsed");
+
+            entity.HasOne(d => d.FUser)
+                 .WithMany()
+                 .HasForeignKey(d => d.FUserId)
+                 .OnDelete(DeleteBehavior.ClientSetNull)
+                 .HasConstraintName("FK_EV_tUser");
+        });
         modelBuilder.Entity<TExternalLogin>(entity =>
         {
             entity.HasKey(e => e.FId);

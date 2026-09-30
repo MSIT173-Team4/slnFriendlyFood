@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using prjFriendlyFoodWebAPI.DTOs.Member;
 using prjFriendlyFoodWebAPI.Models;
 using System.Security.Claims;
+using System.Security.Cryptography;
 
 namespace prjFriendlyFoodWebAPI.Services.Member
 {
@@ -114,7 +115,7 @@ namespace prjFriendlyFoodWebAPI.Services.Member
 
             return externalLogin;
         }
-        public async Task<string> UploadImage(IFormFile img,int uid)
+        public async Task UploadImage(IFormFile img,int uid)
         {
             TUser user = _db.TUsers.FirstOrDefault(x => x.FId == uid);
             if (user == null)
@@ -142,7 +143,46 @@ namespace prjFriendlyFoodWebAPI.Services.Member
 
             await _db.SaveChangesAsync();
 
-            return imageUrl;
+            
+        }
+        public async Task UpdateProfile(EditProfileDTO dto,int id) 
+        {
+            TUser? user = await _db.TUsers
+            .FirstOrDefaultAsync(x => x.FId == id);
+            if (user == null)
+            {
+                throw new Exception("找不到會員");
+            }
+            user.FLastName = dto.LastName;
+            user.FFirstName = dto.FirstName;
+            user.FUsername = dto.Username;
+            user.FPhone = dto.Phone;
+            user.FAddress = dto.Address;
+            await _db.SaveChangesAsync();
+            
+        }
+        public async Task<bool> CheckSeller(int id)
+        {
+            bool exist=await _db.TSellers.AnyAsync(e => e.FUserId == id);
+            return exist;
+        }
+        public async Task AddSeller(int id,string name,string? desc)
+        {
+            bool exists = await _db.TSellers.AnyAsync(x => x.FUserId == id);
+
+            if (exists)
+            {
+                throw new ArgumentException("此會員已具有商家資格");
+            }
+            TSeller s = new TSeller();
+            s.FUserId = id;
+            s.FSellerName = name;
+            s.FDescription = desc;
+            s.FStatus = 4;
+            s.FApplyDate = DateTime.UtcNow;
+            _db.TSellers.Add(s);
+            await _db.SaveChangesAsync();
+        
         }
     }
 }
