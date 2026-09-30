@@ -462,58 +462,38 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         [HttpGet("OrderComplete/{batchId}")]
         public async Task<IActionResult> GetOrderComplete(long batchId)
         {
-            // Include 鏈：批次 → 子訂單 → 賣家、明細 → 商品 → 圖片、折扣
             var batch = await _context.TMarketCheckoutBatches
                 .Include(b => b.TMarketOrders)
-                    .ThenInclude(o => o.FSeller)                   // ← 導覽屬性確認存在 ✓
+                    .ThenInclude(o => o.FSeller)
                 .Include(b => b.TMarketOrders)
                     .ThenInclude(o => o.TMarketOrderDetails)
                         .ThenInclude(d => d.FProduct)
                             .ThenInclude(p => p.TMarketProductImages)
-                .Include(b => b.TMarketOrders)
-                    .ThenInclude(o => o.TMarketOrderDiscounts)
                 .FirstOrDefaultAsync(b => b.FBatchId == batchId);
 
             if (batch == null)
                 return NotFound(new { message = "找不到此批次訂單" });
 
-            var firstOrder = batch.TMarketOrders.FirstOrDefault();
-
-            // 商品折抵 + 運費折抵分開加總（TMarketOrder 有個別欄位）
-            var totalProductDiscount = batch.TMarketOrders.Sum(o => o.FProductDiscount);
-            var totalShippingDiscount = batch.TMarketOrders.Sum(o => o.FShippingDiscount);
-            var totalDiscount = totalProductDiscount + totalShippingDiscount;
-
-            // 商品原價小計（折扣前）
-            var subTotal = batch.TMarketOrders
-                .SelectMany(o => o.TMarketOrderDetails)
-                .Sum(d => d.FUnitPrice * d.FQuantity);
-
-            // 運費：各子訂單原始運費扣掉運費折抵
-            var shippingFee = batch.TMarketOrders.Sum(o => o.FShippingFee - o.FShippingDiscount);
-
-            var dto = new OrderCompleteDto
-            {
-                BatchId = batch.FBatchId,
-                BatchNo = batch.FBatchNo,
-                PaidAt = batch.FPaidAt ?? batch.FCreatedDate,
-                PaymentMethod = batch.FPaymentMethod ?? "信用卡",
-                PaymentStatus = batch.FPaymentStatus,
-                TotalAmount = batch.FTotalAmount,
-                SubTotal = subTotal,
-                DiscountAmount = totalDiscount,
-                ShippingFee = shippingFee,
-
-                RecipientName = firstOrder?.FRecipientName ?? string.Empty,
-                RecipientPhone = firstOrder?.FRecipientPhone ?? string.Empty,
-                ShippingAddress = firstOrder?.FShippingAddress ?? string.Empty,
-                ShippingMethod = firstOrder?.FShippingMethod ?? string.Empty,
-
-                OrderGroups = batch.TMarketOrders.Select(order => new OrderGroupDto
+            // 每張子訂單：收件資訊 + 金額拆解 + 品項
+            var groups = batch.TMarketOrders
+                .OrderBy(o => o.FOrderId)
+                .Select(order => new OrderGroupDto
                 {
                     OrderId = order.FOrderId,
                     OrderNo = order.FOrderNo,
-                    SellerName = order.FSeller?.FSellerName ?? $"賣家 {order.FSellerId}",  // ← FSellerName ✓
+                    SellerName = order.FSeller?.FSellerName ?? $"賣家 {order.FSellerId}",
+
+                    RecipientName = order.FRecipientName ?? string.Empty,
+                    RecipientPhone = order.FRecipientPhone ?? string.Empty,
+                    ShippingAddress = order.FShippingAddress ?? string.Empty,
+                    ShippingMethod = order.FShippingMethod ?? string.Empty,
+
+                    PaymentStatus = order.FPaymentStatus,
+                    SubTotal = order.TMarketOrderDetails.Sum(d => d.FUnitPrice * d.FQuantity),
+                    ProductDiscount = order.FProductDiscount,
+                    ShippingFee = order.FShippingFee,
+                    ShippingDiscount = order.FShippingDiscount,
+                    OrderAmount = order.FTotalAmount,
 
                     Items = order.TMarketOrderDetails.Select(d => new OrderItemDto
                     {
@@ -526,14 +506,30 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                         UnitPrice = d.FUnitPrice,
                         LineTotal = d.FUnitPrice * d.FQuantity
                     }).ToList()
+                })
+                .ToList();
 
-                }).ToList()
+            var dto = new OrderCompleteDto
+            {
+                BatchId = batch.FBatchId,
+                BatchNo = batch.FBatchNo,
+                PaidAt = batch.FPaidAt ?? batch.FCreatedDate,
+                PaymentMethod = batch.FPaymentMethod ?? "信用卡",
+                PaymentStatus = batch.FPaymentStatus,
+
+                // 總覽直接由各子訂單加總，四個數字各自獨立，不會重複扣
+                SubTotal = groups.Sum(g => g.SubTotal),
+                ProductDiscount = groups.Sum(g => g.ProductDiscount),
+                ShippingFee = groups.Sum(g => g.ShippingFee),
+                ShippingDiscount = groups.Sum(g => g.ShippingDiscount),
+                TotalAmount = batch.FTotalAmount,
+
+                OrderGroups = groups
             };
 
             return Ok(dto);
         }
 
-        // CreateOrder 用：一張子訂單在寫入 DB 前的試算結果
         // CreateOrder 用：一張子訂單在寫入 DB 前的試算結果
         private class OrderPlan
         {
