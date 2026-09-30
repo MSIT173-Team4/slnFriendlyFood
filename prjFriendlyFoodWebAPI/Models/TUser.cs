@@ -39,6 +39,8 @@ public partial class TUser
 
     public virtual ICollection<TConversationMember> TConversationMembers { get; set; } = new List<TConversationMember>();
 
+    public virtual ICollection<TEmailVerification> TEmailVerifications { get; set; } = new List<TEmailVerification>();
+
     public virtual ICollection<TExternalLogin> TExternalLogins { get; set; } = new List<TExternalLogin>();
 
     public virtual ICollection<TFoodMapFavorite> TFoodMapFavorites { get; set; } = new List<TFoodMapFavorite>();

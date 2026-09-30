@@ -25,6 +25,8 @@ public partial class FriendlyFoodDbContext : DbContext
 
     public virtual DbSet<TConversationsTable> TConversationsTables { get; set; }
 
+    public virtual DbSet<TEmailVerification> TEmailVerifications { get; set; }
+
     public virtual DbSet<TExternalLogin> TExternalLogins { get; set; }
 
     public virtual DbSet<TFoodMapFavorite> TFoodMapFavorites { get; set; }
@@ -287,6 +289,31 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasPrecision(0)
                 .HasDefaultValueSql("(getdate())")
                 .HasColumnName("fUpdatedDate");
+        });
+
+        modelBuilder.Entity<TEmailVerification>(entity =>
+        {
+            entity.HasKey(e => e.FId).HasName("PK__tEmailVe__D9F8227CDDD585F7");
+
+            entity.ToTable("tEmailVerification");
+
+            entity.Property(e => e.FId).HasColumnName("fId");
+            entity.Property(e => e.FExpireAt).HasColumnName("fExpire_at");
+            entity.Property(e => e.FToken)
+                .IsRequired()
+                .HasMaxLength(255)
+                .HasColumnName("fToken");
+            entity.Property(e => e.FType)
+                .IsRequired()
+                .HasMaxLength(50)
+                .HasColumnName("fType");
+            entity.Property(e => e.FUsed).HasColumnName("fUsed");
+            entity.Property(e => e.FUserId).HasColumnName("fUser_Id");
+
+            entity.HasOne(d => d.FUser).WithMany(p => p.TEmailVerifications)
+                .HasForeignKey(d => d.FUserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_EV_tUser");
         });
 
         modelBuilder.Entity<TExternalLogin>(entity =>
