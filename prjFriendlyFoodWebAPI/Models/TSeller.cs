@@ -19,8 +19,6 @@ public partial class TSeller
 
     public DateTime FApplyDate { get; set; }
 
-    public virtual TStatus FStatusNavigation { get; set; }
-
     public virtual TUser FUser { get; set; }
 
     public virtual ICollection<TMarketCoupon> TMarketCoupons { get; set; } = new List<TMarketCoupon>();

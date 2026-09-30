@@ -1254,8 +1254,8 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasComment("圖片ID")
                 .HasColumnName("fProductImageID");
             entity.Property(e => e.FCreatedDate)
-                .HasDefaultValueSql("(sysdatetime())")
                 .HasComment("建立日期")
+                .HasDefaultValueSql("(sysdatetime())", "DF_tMarketProductImage_fCreatedDate")
                 .HasColumnName("fCreatedDate");
             entity.Property(e => e.FImageUrl)
                 .IsRequired()
@@ -1266,6 +1266,7 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasComment("產品編號")
                 .HasColumnName("fProductID");
             entity.Property(e => e.FPublicId)
+                .IsRequired()
                 .HasMaxLength(255)
                 .HasColumnName("fPublicId");
             entity.Property(e => e.FSortOrder)
@@ -1773,11 +1774,6 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasColumnName("fSellerName");
             entity.Property(e => e.FStatus).HasColumnName("fStatus");
             entity.Property(e => e.FUserId).HasColumnName("fUserId");
-
-            entity.HasOne(d => d.FStatusNavigation).WithMany(p => p.TSellers)
-                .HasForeignKey(d => d.FStatus)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Seller_Status");
 
             entity.HasOne(d => d.FUser).WithMany(p => p.TSellers)
                 .HasForeignKey(d => d.FUserId)
