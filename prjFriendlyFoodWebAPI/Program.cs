@@ -49,7 +49,7 @@ builder.Services.AddCors(options =>
             .AllowCredentials();
     });
 });
-
+builder.Services.AddScoped<EmailServices>();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 .AddJwtBearer(options =>
 {
@@ -104,7 +104,7 @@ builder.Services.AddHttpClient<
             TimeSpan.FromSeconds(10);
     });
 
-
+builder.Services.AddScoped<IdCardProofingServices>();
 builder.Services.AddHttpClient<IGoogleRoutesClient, GoogleRoutesClient>();
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
