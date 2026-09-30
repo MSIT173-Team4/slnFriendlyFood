@@ -20,7 +20,7 @@ WORKDIR /app
 COPY --from=build /app/publish .
 
 # 確保上傳資料夾存在（雲端會被 Cloud Storage 掛載蓋過去）
-RUN mkdir -p wwwroot/ProductImageUploads wwwroot/image/Member
+RUN mkdir -p wwwroot/ProductImageUploads wwwroot/images/Member wwwroot/RecipeUploads
 
 # Cloud Run 預設把流量送到 8080
 ENV ASPNETCORE_HTTP_PORTS=8080
