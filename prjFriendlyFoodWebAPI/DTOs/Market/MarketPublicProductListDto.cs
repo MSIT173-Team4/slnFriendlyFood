@@ -52,6 +52,14 @@ namespace prjFriendlyFoodWebAPI.DTOs.Market
         /// 商品圖片 URL 列表
         /// </summary>
         public List<string>? ImageUrls { get; set; }
+        /// <summary>
+        /// 目前登入者是否已收藏（未登入一律 false）
+        /// </summary>
+        public bool IsFavorite { get; set; }
 
+        /// <summary>
+        /// 是否為目前登入者自己賣場的商品（未登入一律 false）
+        /// </summary>
+        public bool IsOwnProduct { get; set; }
     }
 }
