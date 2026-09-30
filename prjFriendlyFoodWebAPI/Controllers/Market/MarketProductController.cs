@@ -5,6 +5,9 @@ using prjFriendlyFoodWebAPI.DTOs.Market;
 using prjFriendlyFoodWebAPI.Models;
 using static Microsoft.Extensions.Logging.EventSource.LoggingEventSource;
 using prjFriendlyFoodWebAPI.Services.ImageUpload;
+using prjFriendlyFoodWebAPI.Extensions;
+using Microsoft.AspNetCore.Authorization;
+using prjFriendlyFoodWebAPI.Services.Market;
 
 namespace prjFriendlyFoodWebAPI.Controllers.Market
 {
@@ -14,18 +17,31 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
     {
         private readonly FriendlyFoodDbContext _context;
         private readonly ICloudinaryService _cloudinaryService;
+        private readonly ISellerIdentityService _sellerIdentity;
 
         private const int MaxImageCount = 5;
 
         // 注入 IWebHostEnvironment 才能拿到 wwwroot 的實際路徑
         public MarketProductController(
-            FriendlyFoodDbContext context,
-            IWebHostEnvironment env,
-            ICloudinaryService cloudinaryService)
+                FriendlyFoodDbContext context,
+                IWebHostEnvironment env,
+                ICloudinaryService cloudinaryService,
+                ISellerIdentityService sellerIdentity)
         {
             _context = context;
             _cloudinaryService = cloudinaryService;
+            _sellerIdentity = sellerIdentity;
         }
+
+        // 賣家後台 API 共用：取得目前登入者「生效中」的賣家 Id，不是有效賣家回傳 null
+        private async Task<int?> GetCurrentSellerIdAsync()
+        {
+            var seller = await _sellerIdentity.GetActiveSellerAsync(User.GetUserId());
+            return seller?.FId;
+        }
+
+        private IActionResult NotSeller() =>
+            StatusCode(403, new { message = "您尚未開通賣場，或賣場已停權" });
 
         // 消費者端：固定只拿架上商品（status = 1）
         [HttpGet("public")]
@@ -59,10 +75,13 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         [HttpPost]
         [DisableRequestSizeLimit]
         [RequestFormLimits(MultipartBodyLengthLimit = 30 * 1024 * 1024)] // 30MB(5 張 × 5MB + 餘裕)
+        [Authorize]
         public async Task<IActionResult> CreateProduct([FromForm] MarketProductCreateDto dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
+            var sellerId = await GetCurrentSellerIdAsync();
+            if (sellerId == null) return NotSeller();
 
             // ===== Step 1：驗證產品分類跟圖片，全部通過才往下走 =====
             var categoryExists = await _context.TMarketProductCategories
@@ -107,12 +126,9 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
             var uploaded = uploadTasks.Select(t => t.Result).ToList();
 
             // ===== Step 3：寫入 DB（商品 + 圖片，一次 SaveChanges）=====
-            // 之後換成從 Token 拿 sellerId
-            int sellerId = 7;
-
             var product = new TMarketProduct
             {
-                FSellerId = sellerId,
+                FSellerId = sellerId.Value,
                 FProductNo = $"P{Guid.NewGuid().ToString("N").Substring(0, 8).ToUpper()}",
                 FProductsCategoryNo = dto.ProductsCategoryNo,
                 FProductName = dto.ProductName,
@@ -138,6 +154,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                 });
             }
 
+            ProductStockRules.SyncStatusWithStock(product);
             _context.TMarketProducts.Add(product);
 
             try
@@ -205,6 +222,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                 _ => query.OrderByDescending(p => p.FProductId) // 預設最新
             };
 
+            int? userId = User.TryGetUserId();
             // 分頁 + mapping 到 DTO
             var totalCount = await query.CountAsync();
             var items = await query
@@ -224,7 +242,10 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                     ImageUrls = p.TMarketProductImages
                                  .OrderBy(img => img.FSortOrder)
                                  .Select(img => img.FImageUrl)
-                                 .ToList()
+                                 .ToList(),
+                    IsFavorite = userId != null && _context.TMarketProductFavorites
+                    .Any(f => f.FProductId == p.FProductId && f.FUserId == userId),
+                    IsOwnProduct = userId != null && p.FSeller.FUserId == userId
                 })
                 .ToListAsync();
 
@@ -239,6 +260,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetProductDetail(int id)
         {
+            int? userId = User.TryGetUserId();
             var product = await _context.TMarketProducts
                 .Where(p => p.FProductId == id && p.FProductStatus == 1)
                 .Select(p => new MarketProductDetailDto
@@ -268,7 +290,10 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                     SellerName = p.FSeller.FSellerName,
                     SellerDescription = p.FSeller.FDescription,
                     SellerProductCount = _context.TMarketProducts
-                        .Count(sp => sp.FSellerId == p.FSellerId && sp.FProductStatus == 1)
+                        .Count(sp => sp.FSellerId == p.FSellerId && sp.FProductStatus == 1),
+                    IsFavorite = userId != null && _context.TMarketProductFavorites
+                        .Any(f => f.FProductId == p.FProductId && f.FUserId == userId),
+                    IsOwnProduct = userId != null && p.FSeller.FUserId == userId
                 })
                 .FirstOrDefaultAsync();
 
@@ -347,15 +372,18 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
 
         // 賣家後台商品列表（含近30天銷量）
         [HttpGet("sellcenter")]
+        [Authorize]
         public async Task<IActionResult> GetSellerProducts(
             [FromQuery] byte? status,
             [FromQuery] bool lowStock = false,
             [FromQuery] int page = 1,
             [FromQuery] string? keyword = null)
         {
+            var sellerId = await GetCurrentSellerIdAsync();
+            if (sellerId == null) return NotSeller();
             // 之後換成從 Token 拿 sellerId
             var query = _context.TMarketProducts
-                .Where(p => p.FSellerId == 7)
+                .Where(p => p.FSellerId == sellerId.Value)
                 .AsQueryable();
 
             if (status.HasValue)
@@ -420,11 +448,14 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
 
         // 上下架靜默切換
         [HttpPatch("{id}/status")]
+        [Authorize]
         public async Task<IActionResult> UpdateProductStatus(
             int id, [FromBody] UpdateProductStatusDto dto)
         {
+            var sellerId = await GetCurrentSellerIdAsync();
+            if (sellerId == null) return NotSeller();
             var product = await _context.TMarketProducts
-                .FirstOrDefaultAsync(p => p.FProductId == id && p.FSellerId == 7); // 之後改 Token
+                .FirstOrDefaultAsync(p => p.FProductId == id && p.FSellerId == sellerId.Value); // 之後改 Token
 
             if (product == null)
                 return NotFound(new { message = "商品不存在或無權限" });
@@ -437,10 +468,13 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
 
         // 賣家取得單一商品（含所有狀態、含圖片 id）
         [HttpGet("seller/{id:int}")]
+        [Authorize]
         public async Task<IActionResult> GetSellerProductDetail(int id)
         {
+            var sellerId = await GetCurrentSellerIdAsync();
+            if (sellerId == null) return NotSeller();
             var product = await _context.TMarketProducts
-                .Where(p => p.FProductId == id && p.FSellerId == 7) // 之後換 Token
+                .Where(p => p.FProductId == id && p.FSellerId == sellerId.Value) 
                 .Select(p => new MarketSellerProductDetailDto
                 {
                     ProductId = p.FProductId,
@@ -476,11 +510,14 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         [HttpPut("seller/{id:int}")]
         [DisableRequestSizeLimit]
         [RequestFormLimits(MultipartBodyLengthLimit = 30 * 1024 * 1024)] // 30MB(5 張 × 5MB + 餘裕)
+        [Authorize]
         public async Task<IActionResult> UpdateProduct(int id, [FromForm] MarketProductUpdateDto dto)
         {
+            var sellerId = await GetCurrentSellerIdAsync();
+            if (sellerId == null) return NotSeller();
             var product = await _context.TMarketProducts
                 .Include(p => p.TMarketProductImages)
-                .FirstOrDefaultAsync(p => p.FProductId == id && p.FSellerId == 7); // 之後換 Token
+                .FirstOrDefaultAsync(p => p.FProductId == id && p.FSellerId == sellerId.Value); 
 
             if (product == null)
                 return NotFound(new { message = "商品不存在或無權限" });
@@ -551,6 +588,8 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
             if (dto.ProductStatus.HasValue)
                 product.FProductStatus = dto.ProductStatus.Value;
 
+            ProductStockRules.SyncStatusWithStock(product);
+
             // 移除圖片「資料」，實體檔案先不刪：DB 失敗會 rollback，檔案刪了卻救不回來
             // 用 product 底下的圖片去篩選，別人商品的圖片 Id 傳進來也刪不到
             var toDelete = product.TMarketProductImages
@@ -617,10 +656,13 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
 
         // PATCH /api/MarketProduct/seller/{id}/stock
         [HttpPatch("seller/{id:int}/stock")]
+        [Authorize]
         public async Task<IActionResult> UpdateProductStock(int id, [FromBody] MarketProductStockUpdateDto dto)
         {
+            var sellerId = await GetCurrentSellerIdAsync();
+            if (sellerId == null) return NotSeller();
             var product = await _context.TMarketProducts
-                .FirstOrDefaultAsync(p => p.FProductId == id && p.FSellerId == 7); // 之後換 Token
+                .FirstOrDefaultAsync(p => p.FProductId == id && p.FSellerId == sellerId.Value); 
 
             if (product == null)
                 return NotFound(new { message = "商品不存在或無權限" });
@@ -630,13 +672,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
 
             product.FStock = dto.Stock;
 
-            // 庫存大於 0 且目前是已售完狀態，自動改回販售中
-            if (dto.Stock > 0 && product.FProductStatus == 2)
-                product.FProductStatus = 1;
-
-            // 庫存為 0 且目前是販售中，自動改成已售完
-            if (dto.Stock == 0 && product.FProductStatus == 1)
-                product.FProductStatus = 2;
+            ProductStockRules.SyncStatusWithStock(product);
 
             await _context.SaveChangesAsync();
 

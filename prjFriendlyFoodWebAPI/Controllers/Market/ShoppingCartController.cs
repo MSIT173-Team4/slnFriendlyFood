@@ -2,11 +2,14 @@
 using Microsoft.EntityFrameworkCore;
 using prjFriendlyFoodWebAPI.DTOs.Market;
 using prjFriendlyFoodWebAPI.Models;
+using Microsoft.AspNetCore.Authorization;
+using prjFriendlyFoodWebAPI.Extensions;
 
 namespace prjFriendlyFoodWebAPI.Controllers.Market
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class ShoppingCartController : ControllerBase
     {
         private readonly FriendlyFoodDbContext _context;
@@ -20,8 +23,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         [HttpGet]
         public async Task<IActionResult> GetCart()
         {
-            // TODO: 之後換成從 JWT 拿 userId
-            int userId = 1;
+            int userId = User.GetUserId();
 
             var items = await _context.TMarketShoppingCarts
                 .Where(c => c.FUserId == userId)
@@ -38,7 +40,9 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                     ImageUrl = c.FProduct.TMarketProductImages
                         .OrderBy(img => img.FSortOrder)
                         .Select(img => img.FImageUrl)
-                        .FirstOrDefault()
+                        .FirstOrDefault(),
+                    IsFavorite = _context.TMarketProductFavorites
+                        .Any(f => f.FProductId == c.FProductId && f.FUserId == userId)
                 })
                 .ToListAsync();
 
@@ -58,7 +62,8 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                         Price = i.Price,
                         Stock = i.Stock,
                         Quantity = i.FQuantity,
-                        Subtotal = i.Price * i.FQuantity
+                        Subtotal = i.Price * i.FQuantity,
+                        IsFavorite = i.IsFavorite
                     }).ToList()
                 })
                 .ToList();
@@ -70,7 +75,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         [HttpPost("add")]
         public async Task<IActionResult> AddToCart([FromBody] AddToCartDto dto)
         {
-            int userId = 1;
+            int userId = User.GetUserId();
 
             var product = await _context.TMarketProducts
                 .FirstOrDefaultAsync(p => p.FProductId == dto.ProductId
@@ -81,6 +86,12 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
 
             if (product.FStock <= 0)
                 return BadRequest(new { message = "商品已售完" });
+
+            // 賣家不能購買自己上架的商品（前端隱藏按鈕）
+            var isOwnProduct = await _context.TSellers
+                .AnyAsync(s => s.FId == product.FSellerId && s.FUserId == userId);
+            if (isOwnProduct)
+                return BadRequest(new { message = "不能購買自己上架的商品" });
 
             var existing = await _context.TMarketShoppingCarts
                 .FirstOrDefaultAsync(c => c.FUserId == userId
@@ -115,7 +126,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         [HttpPut("{cartItemId}")]
         public async Task<IActionResult> UpdateCartItem(int cartItemId, [FromBody] UpdateCartItemDto dto)
         {
-            int userId = 1;
+            int userId = User.GetUserId();
 
             if (dto.Quantity <= 0)
                 return BadRequest(new { message = "數量必須大於 0" });
@@ -145,7 +156,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         [HttpDelete("{cartItemId}")]
         public async Task<IActionResult> DeleteCartItem(int cartItemId)
         {
-            int userId = 1;
+            int userId = User.GetUserId();
 
             var item = await _context.TMarketShoppingCarts
                 .FirstOrDefaultAsync(c => c.FCartItemId == cartItemId && c.FUserId == userId);
@@ -163,7 +174,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         [HttpDelete("all")]
         public async Task<IActionResult> ClearCart()
         {
-            int userId = 1;
+            int userId = User.GetUserId();
 
             var items = await _context.TMarketShoppingCarts
                 .Where(c => c.FUserId == userId)

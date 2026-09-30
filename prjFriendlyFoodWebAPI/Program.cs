@@ -37,7 +37,7 @@ builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
 //Cloudinary-End
 
 builder.Services.AddScoped<ICouponService, CouponService>();
-
+builder.Services.AddScoped<ISellerIdentityService, SellerIdentityService>();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAngularClient", policy =>

@@ -8,11 +8,13 @@ using System.Text;
 using System.Web;
 using static prjFriendlyFoodWebAPI.DTOs.Market.CheckoutDto;
 using prjFriendlyFoodWebAPI.Services.Market;
+using prjFriendlyFoodWebAPI.Extensions;
 
 namespace prjFriendlyFoodWebAPI.Controllers.Market
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class CheckoutController : ControllerBase
     {
         private readonly FriendlyFoodDbContext _context;
@@ -25,13 +27,14 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
             _couponService = couponService;
         }
 
-        private const string ImageBaseUrl = "https://localhost:7164";
 
         [HttpGet("Pay/{batchId}")]
         public async Task<IActionResult> Pay(long batchId)
         {
+            int userId = User.GetUserId();
+
             var batch = await _context.TMarketCheckoutBatches
-                .FirstOrDefaultAsync(b => b.FBatchId == batchId);
+                .FirstOrDefaultAsync(b => b.FBatchId == batchId && b.FUserId == userId);
             if (batch == null)
                 return NotFound("找不到此結帳批次");
 
@@ -108,7 +111,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         [HttpPost("CreateOrder")]
         public async Task<IActionResult> CreateOrder([FromBody] CreateOrderRequestDto request)
         {
-            int userId = 1;
+            int userId = User.GetUserId();
             if (request.CartItemIds == null || !request.CartItemIds.Any())
                 return BadRequest(new { message = "請選擇至少一件商品" });
 
@@ -120,6 +123,14 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
 
             if (cartItems.Count != request.CartItemIds.Count)
                 return BadRequest(new { message = "部分購物車項目不存在或不屬於此帳號" });
+
+            // 再擋一次不能購買自己的商品
+            var mySellerIds = await _context.TSellers
+                .Where(s => s.FUserId == userId)
+                .Select(s => s.FId)
+                .ToListAsync();
+            if (cartItems.Any(c => mySellerIds.Contains(c.FProduct.FSellerId)))
+                return BadRequest(new { message = "購物車中有您自己上架的商品，請移除後再結帳" });
 
             foreach (var item in cartItems)
             {
@@ -238,6 +249,25 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                         return BadRequest(new { message = "優惠券已被兌換完畢" + retryHint });
                     }
                 }
+                // 扣庫存：判斷與扣除在同一句 SQL 完成，兩人同時搶最後一件也不會超賣；
+                // 同時要求商品仍為「販售中」，避免購買已下架的商品
+                foreach (var item in cartItems)
+                {
+                    var affected = await _context.TMarketProducts
+                        .Where(p => p.FProductId == item.FProductId
+                                 && p.FProductStatus == ProductStockRules.OnSale
+                                 && p.FStock >= item.FQuantity)
+                        .ExecuteUpdateAsync(s => s.SetProperty(p => p.FStock, p => p.FStock - item.FQuantity));
+
+                    if (affected == 0)
+                    {
+                        await transaction.RollbackAsync();
+                        return BadRequest(new { message = $"商品「{item.FProduct.FProductName}」庫存不足或已下架{retryHint}" });
+                    }
+                }
+
+                // 扣到 0 的商品自動改為已售完
+                await ProductStockRules.MarkSoldOutAsync(_context, cartItems.Select(c => c.FProductId));
                 var batch = new TMarketCheckoutBatch
                 {
                     FBatchNo = GenerateBatchNo(),
@@ -462,6 +492,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         [HttpGet("OrderComplete/{batchId}")]
         public async Task<IActionResult> GetOrderComplete(long batchId)
         {
+            int userId = User.GetUserId();
             var batch = await _context.TMarketCheckoutBatches
                 .Include(b => b.TMarketOrders)
                     .ThenInclude(o => o.FSeller)
@@ -469,7 +500,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                     .ThenInclude(o => o.TMarketOrderDetails)
                         .ThenInclude(d => d.FProduct)
                             .ThenInclude(p => p.TMarketProductImages)
-                .FirstOrDefaultAsync(b => b.FBatchId == batchId);
+                            .FirstOrDefaultAsync(b => b.FBatchId == batchId && b.FUserId == userId);
 
             if (batch == null)
                 return NotFound(new { message = "找不到此批次訂單" });

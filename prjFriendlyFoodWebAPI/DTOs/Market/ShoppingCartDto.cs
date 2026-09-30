@@ -18,6 +18,7 @@
         public int Stock { get; set; }
         public int Quantity { get; set; }
         public decimal Subtotal { get; set; }
+        public bool IsFavorite { get; set; }
     }
 
     // PUT /api/ShoppingCart/{cartItemId}
