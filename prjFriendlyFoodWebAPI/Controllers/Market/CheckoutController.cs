@@ -7,28 +7,34 @@ using prjFriendlyFoodWebAPI.Models;
 using System.Text;
 using System.Web;
 using static prjFriendlyFoodWebAPI.DTOs.Market.CheckoutDto;
+using prjFriendlyFoodWebAPI.Services.Market;
+using prjFriendlyFoodWebAPI.Extensions;
 
 namespace prjFriendlyFoodWebAPI.Controllers.Market
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class CheckoutController : ControllerBase
     {
         private readonly FriendlyFoodDbContext _context;
         private readonly IConfiguration _config;
-        public CheckoutController(FriendlyFoodDbContext context,IConfiguration config)
+        private readonly ICouponService _couponService;
+        public CheckoutController(FriendlyFoodDbContext context, IConfiguration config, ICouponService couponService)
         {
             _context = context;
             _config = config;
+            _couponService = couponService;
         }
 
-        private const string ImageBaseUrl = "https://localhost:7164";
 
         [HttpGet("Pay/{batchId}")]
         public async Task<IActionResult> Pay(long batchId)
         {
+            int userId = User.GetUserId();
+
             var batch = await _context.TMarketCheckoutBatches
-                .FirstOrDefaultAsync(b => b.FBatchId == batchId);
+                .FirstOrDefaultAsync(b => b.FBatchId == batchId && b.FUserId == userId);
             if (batch == null)
                 return NotFound("找不到此結帳批次");
 
@@ -103,36 +109,165 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
 
 
         [HttpPost("CreateOrder")]
-        public async Task<IActionResult> CreateOrder([FromBody] CreateOrderRequestDto requset)
+        public async Task<IActionResult> CreateOrder([FromBody] CreateOrderRequestDto request)
         {
-            int userId = 1;
-            if (requset.CartItemIds == null || !requset.CartItemIds.Any())
-                return BadRequest("請選擇至少一件商品");
+            int userId = User.GetUserId();
+            if (request.CartItemIds == null || !request.CartItemIds.Any())
+                return BadRequest(new { message = "請選擇至少一件商品" });
 
             var cartItems = await _context.TMarketShoppingCarts
                 .Include(c => c.FProduct)
-                .Where(c => requset.CartItemIds.Contains(c.FCartItemId)
-                && c.FUserId == userId)
+                .Where(c => request.CartItemIds.Contains(c.FCartItemId)
+                         && c.FUserId == userId)
                 .ToListAsync();
 
-            if (cartItems.Count != requset.CartItemIds.Count)
-                return BadRequest("部分購物車項目不存在或不屬於此帳號");
+            if (cartItems.Count != request.CartItemIds.Count)
+                return BadRequest(new { message = "部分購物車項目不存在或不屬於此帳號" });
+
+            // 再擋一次不能購買自己的商品
+            var mySellerIds = await _context.TSellers
+                .Where(s => s.FUserId == userId)
+                .Select(s => s.FId)
+                .ToListAsync();
+            if (cartItems.Any(c => mySellerIds.Contains(c.FProduct.FSellerId)))
+                return BadRequest(new { message = "購物車中有您自己上架的商品，請移除後再結帳" });
 
             foreach (var item in cartItems)
             {
                 if (item.FProduct.FStock < item.FQuantity)
-                    return BadRequest($"商品「{item.FProduct.FProductName}」庫存不足");
+                    return BadRequest(new { message = $"商品「{item.FProduct.FProductName}」庫存不足" });
             }
 
-            var groupedBySeller = cartItems
-                .GroupBy(c => c.FSellerId)
-                .ToList();
+            // 寫入 DB 之前，先把每張子訂單的金額、收件資料全部準備好並檢查完，
+            // 有任何問題就在這裡擋下，不用進 transaction 再 rollback
+            var orderPlans = new List<OrderPlan>();
+            foreach (var g in cartItems.GroupBy(c => c.FSellerId))
+            {
+                var shipping = request.SellerShippings?.FirstOrDefault(s => s.SellerId == g.Key);
+                if (shipping == null
+                    || string.IsNullOrWhiteSpace(shipping.RecipientName)
+                    || string.IsNullOrWhiteSpace(shipping.RecipientPhone)
+                    || string.IsNullOrWhiteSpace(shipping.ShippingAddress))
+                {
+                    return BadRequest(new { message = "有賣家的收件資料未填寫完整" });
+                }
 
-            decimal totalAmount = cartItems.Sum(c => c.FProduct.FPrice * c.FQuantity);
+                orderPlans.Add(new OrderPlan
+                {
+                    SellerId = g.Key,
+                    Items = g.ToList(),
+                    ItemsAmount = g.Sum(c => c.FProduct.FPrice * c.FQuantity),
+                    ShippingFee = MarketConstants.ShippingFeePerSeller,
+                    Shipping = shipping
+                });
+            }
+
+            // ── 套用優惠券：全部在後端重新驗證，不相信購物車頁當時的試算結果 ──
+            const string retryHint = "，請回購物車重新確認";
+            var couponIdsToUse = new List<int>();
+
+            // 賣家券：每個賣家最多一張，用該賣家的商品金額驗證
+            foreach (var sc in request.SellerCoupons ?? new())
+            {
+                var plan = orderPlans.FirstOrDefault(p => p.SellerId == sc.SellerId);
+                if (plan == null)
+                    return BadRequest(new { message = "優惠券對應的賣家不在此次結帳中" + retryHint });
+                if (plan.Discounts.Any())
+                    return BadRequest(new { message = "每個賣家只能使用一張優惠券" });
+
+                var check = await _couponService.ValidateByIdAsync(sc.CouponId, plan.ItemsAmount, plan.SellerId);
+                if (!check.IsValid)
+                    return BadRequest(new { message = check.ErrorMessage + retryHint });
+
+                var coupon = check.Coupon!;
+                if (coupon.FScopeType == "Shipping")
+                {
+                    plan.ShippingDiscount = plan.ShippingFee;
+                    plan.Discounts.Add(new AppliedDiscount { Coupon = coupon, Amount = plan.ShippingFee });
+                }
+                else
+                {
+                    plan.ProductDiscount += check.AppliedAmount;
+                    plan.Discounts.Add(new AppliedDiscount { Coupon = coupon, Amount = check.AppliedAmount });
+                }
+                couponIdsToUse.Add(coupon.FCouponId);
+            }
+
+            // 全站券：用「扣賣家券前」的商品總額驗證（跟購物車頁算法一致）
+            if (request.PlatformCouponId.HasValue)
+            {
+                decimal itemsTotal = orderPlans.Sum(p => p.ItemsAmount);
+                var check = await _couponService.ValidateByIdAsync(request.PlatformCouponId.Value, itemsTotal, null);
+                if (!check.IsValid)
+                    return BadRequest(new { message = check.ErrorMessage + retryHint });
+
+                var coupon = check.Coupon!;
+                if (coupon.FScopeType == "Shipping")
+                {
+                    // 平台免運券：每個還沒免運的賣家各免 80（已用賣家免運券的不重複折）
+                    foreach (var plan in orderPlans.Where(p => p.ShippingDiscount == 0))
+                    {
+                        plan.ShippingDiscount = plan.ShippingFee;
+                        plan.Discounts.Add(new AppliedDiscount { Coupon = coupon, Amount = plan.ShippingFee });
+                    }
+                }
+                else
+                {
+                    // 全站折扣券：依各子訂單商品金額比例分攤，餘數給最後一張，確保加總剛好等於折抵總額
+                    decimal remaining = check.AppliedAmount;
+                    for (int i = 0; i < orderPlans.Count; i++)
+                    {
+                        var plan = orderPlans[i];
+                        decimal share = (i == orderPlans.Count - 1)
+                            ? remaining
+                            : Math.Round(check.AppliedAmount * plan.ItemsAmount / itemsTotal, 0);
+                        remaining -= share;
+
+                        if (share > 0)
+                        {
+                            plan.ProductDiscount += share;
+                            plan.Discounts.Add(new AppliedDiscount { Coupon = coupon, Amount = share });
+                        }
+                    }
+                }
+                couponIdsToUse.Add(coupon.FCouponId);   // 平台券不管分攤到幾張子訂單，名額只扣 1
+            }
+
+            decimal totalAmount = orderPlans.Sum(p => p.PayableAmount);
+            if (totalAmount < 1)
+                return BadRequest(new { message = "折抵後應付金額為 0，無法進行線上付款" });
 
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
+                // 先搶優惠券名額；任何一張搶不到就整筆 rollback，名額也會一起還回去
+                foreach (var couponId in couponIdsToUse)
+                {
+                    if (!await _couponService.TryUseAsync(couponId))
+                    {
+                        await transaction.RollbackAsync();
+                        return BadRequest(new { message = "優惠券已被兌換完畢" + retryHint });
+                    }
+                }
+                // 扣庫存：判斷與扣除在同一句 SQL 完成，兩人同時搶最後一件也不會超賣；
+                // 同時要求商品仍為「販售中」，避免購買已下架的商品
+                foreach (var item in cartItems)
+                {
+                    var affected = await _context.TMarketProducts
+                        .Where(p => p.FProductId == item.FProductId
+                                 && p.FProductStatus == ProductStockRules.OnSale
+                                 && p.FStock >= item.FQuantity)
+                        .ExecuteUpdateAsync(s => s.SetProperty(p => p.FStock, p => p.FStock - item.FQuantity));
+
+                    if (affected == 0)
+                    {
+                        await transaction.RollbackAsync();
+                        return BadRequest(new { message = $"商品「{item.FProduct.FProductName}」庫存不足或已下架{retryHint}" });
+                    }
+                }
+
+                // 扣到 0 的商品自動改為已售完
+                await ProductStockRules.MarkSoldOutAsync(_context, cartItems.Select(c => c.FProductId));
                 var batch = new TMarketCheckoutBatch
                 {
                     FBatchNo = GenerateBatchNo(),
@@ -142,31 +277,28 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                     FPaymentMethod = "Credit",
                     FCreatedDate = DateTime.Now,
                 };
-
                 _context.TMarketCheckoutBatches.Add(batch);
                 await _context.SaveChangesAsync();
 
                 var subOrders = new List<TMarketOrder>();
 
-                foreach (var sellerGroup in groupedBySeller)
+                foreach (var plan in orderPlans)
                 {
-                    decimal orderAmount = sellerGroup.Sum(c => c.FProduct.FPrice * c.FQuantity);
-
                     var order = new TMarketOrder
                     {
                         FBatchId = batch.FBatchId,
                         FOrderNo = GenerateOrderNo(),
                         FUserId = userId,
-                        FSellerId = sellerGroup.Key,
-                        FTotalAmount = orderAmount,
+                        FSellerId = plan.SellerId,
+                        FTotalAmount = plan.PayableAmount,
                         FOrderDate = DateTime.Now,
                         FShippingMethod = "Home",
-                        FShippingFee = 0,
-                        FShippingDiscount = 0,
-                        FProductDiscount = 0,
-                        FRecipientName = "測試收件人",
-                        FRecipientPhone = "0912345678",
-                        FShippingAddress = "台北市測試地址",
+                        FShippingFee = plan.ShippingFee,
+                        FShippingDiscount = plan.ShippingDiscount,
+                        FProductDiscount = plan.ProductDiscount,
+                        FRecipientName = plan.Shipping.RecipientName.Trim(),
+                        FRecipientPhone = plan.Shipping.RecipientPhone.Trim(),
+                        FShippingAddress = plan.Shipping.ShippingAddress.Trim(),
                         FOrderStatus = 0,
                         FPaymentStatus = 0,
                         FShippingStatus = 0,
@@ -174,29 +306,46 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                         FCancellationStatus = 0,
                         FReturnStatus = 0,
                     };
-
                     _context.TMarketOrders.Add(order);
                     await _context.SaveChangesAsync();
 
-                    foreach (var item in sellerGroup)
+                    foreach (var item in plan.Items)
                     {
-                        var detail = new TMarketOrderDetail
+                        _context.TMarketOrderDetails.Add(new TMarketOrderDetail
                         {
                             FOrderId = order.FOrderId,
                             FProductId = item.FProductId,
                             FQuantity = item.FQuantity,
                             FUnitPrice = item.FProduct.FPrice,
-                        };
-                        _context.TMarketOrderDetails.Add(detail);
+                        });
                     }
+
+                    // 折扣快照：券之後被改名或停用，這張訂單的紀錄也不會變
+                    foreach (var d in plan.Discounts)
+                    {
+                        _context.TMarketOrderDiscounts.Add(new TMarketOrderDiscount
+                        {
+                            FOrderId = order.FOrderId,
+                            FCouponId = d.Coupon.FCouponId,
+                            FDiscountName = d.Coupon.FName,
+                            FDiscountScope = d.Coupon.FScopeType,
+                            FDiscountType = d.Coupon.FDiscountType,
+                            FAppliedAmount = d.Amount
+                        });
+                    }
+
                     await _context.SaveChangesAsync();
 
                     subOrders.Add(order);
                 }
 
+                // 移除已結帳的購物車項目
+                _context.TMarketShoppingCarts.RemoveRange(cartItems);
+                await _context.SaveChangesAsync();
+
                 await transaction.CommitAsync();
 
-                var response = new CreateOrderResponseDto
+                return Ok(new CreateOrderResponseDto
                 {
                     BatchId = batch.FBatchId,
                     BathNo = batch.FBatchNo,
@@ -208,14 +357,12 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                         SellerId = o.FSellerId,
                         OrderAmount = o.FTotalAmount,
                     }).ToList()
-                };
-
-                return Ok(response);
+                });
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                return StatusCode(500, $"建立訂單失敗:{ex.Message}");
+                return StatusCode(500, new { message = $"建立訂單失敗:{ex.Message}" });
             }
         }
         private string GenerateBatchNo()
@@ -345,35 +492,53 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         [HttpGet("OrderComplete/{batchId}")]
         public async Task<IActionResult> GetOrderComplete(long batchId)
         {
-            // Include 鏈：批次 → 子訂單 → 賣家、明細 → 商品 → 圖片、折扣
+            int userId = User.GetUserId();
             var batch = await _context.TMarketCheckoutBatches
                 .Include(b => b.TMarketOrders)
-                    .ThenInclude(o => o.FSeller)                   // ← 導覽屬性確認存在 ✓
+                    .ThenInclude(o => o.FSeller)
                 .Include(b => b.TMarketOrders)
                     .ThenInclude(o => o.TMarketOrderDetails)
                         .ThenInclude(d => d.FProduct)
                             .ThenInclude(p => p.TMarketProductImages)
-                .Include(b => b.TMarketOrders)
-                    .ThenInclude(o => o.TMarketOrderDiscounts)
-                .FirstOrDefaultAsync(b => b.FBatchId == batchId);
+                            .FirstOrDefaultAsync(b => b.FBatchId == batchId && b.FUserId == userId);
 
             if (batch == null)
                 return NotFound(new { message = "找不到此批次訂單" });
 
-            var firstOrder = batch.TMarketOrders.FirstOrDefault();
+            // 每張子訂單：收件資訊 + 金額拆解 + 品項
+            var groups = batch.TMarketOrders
+                .OrderBy(o => o.FOrderId)
+                .Select(order => new OrderGroupDto
+                {
+                    OrderId = order.FOrderId,
+                    OrderNo = order.FOrderNo,
+                    SellerName = order.FSeller?.FSellerName ?? $"賣家 {order.FSellerId}",
 
-            // 商品折抵 + 運費折抵分開加總（TMarketOrder 有個別欄位）
-            var totalProductDiscount = batch.TMarketOrders.Sum(o => o.FProductDiscount);
-            var totalShippingDiscount = batch.TMarketOrders.Sum(o => o.FShippingDiscount);
-            var totalDiscount = totalProductDiscount + totalShippingDiscount;
+                    RecipientName = order.FRecipientName ?? string.Empty,
+                    RecipientPhone = order.FRecipientPhone ?? string.Empty,
+                    ShippingAddress = order.FShippingAddress ?? string.Empty,
+                    ShippingMethod = order.FShippingMethod ?? string.Empty,
 
-            // 商品原價小計（折扣前）
-            var subTotal = batch.TMarketOrders
-                .SelectMany(o => o.TMarketOrderDetails)
-                .Sum(d => d.FUnitPrice * d.FQuantity);
+                    PaymentStatus = order.FPaymentStatus,
+                    SubTotal = order.TMarketOrderDetails.Sum(d => d.FUnitPrice * d.FQuantity),
+                    ProductDiscount = order.FProductDiscount,
+                    ShippingFee = order.FShippingFee,
+                    ShippingDiscount = order.FShippingDiscount,
+                    OrderAmount = order.FTotalAmount,
 
-            // 運費：各子訂單原始運費扣掉運費折抵
-            var shippingFee = batch.TMarketOrders.Sum(o => o.FShippingFee - o.FShippingDiscount);
+                    Items = order.TMarketOrderDetails.Select(d => new OrderItemDto
+                    {
+                        ProductId = d.FProductId,
+                        ProductName = d.FProduct?.FProductName ?? string.Empty,
+                        ImageUrl = d.FProduct?.TMarketProductImages
+                                    .OrderBy(img => img.FSortOrder)
+                                    .FirstOrDefault()?.FImageUrl,
+                        Quantity = d.FQuantity,
+                        UnitPrice = d.FUnitPrice,
+                        LineTotal = d.FUnitPrice * d.FQuantity
+                    }).ToList()
+                })
+                .ToList();
 
             var dto = new OrderCompleteDto
             {
@@ -382,40 +547,41 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                 PaidAt = batch.FPaidAt ?? batch.FCreatedDate,
                 PaymentMethod = batch.FPaymentMethod ?? "信用卡",
                 PaymentStatus = batch.FPaymentStatus,
+
+                // 總覽直接由各子訂單加總，四個數字各自獨立，不會重複扣
+                SubTotal = groups.Sum(g => g.SubTotal),
+                ProductDiscount = groups.Sum(g => g.ProductDiscount),
+                ShippingFee = groups.Sum(g => g.ShippingFee),
+                ShippingDiscount = groups.Sum(g => g.ShippingDiscount),
                 TotalAmount = batch.FTotalAmount,
-                SubTotal = subTotal,
-                DiscountAmount = totalDiscount,
-                ShippingFee = shippingFee,
 
-                RecipientName = firstOrder?.FRecipientName ?? string.Empty,
-                RecipientPhone = firstOrder?.FRecipientPhone ?? string.Empty,
-                ShippingAddress = firstOrder?.FShippingAddress ?? string.Empty,
-                ShippingMethod = firstOrder?.FShippingMethod ?? string.Empty,
-
-                OrderGroups = batch.TMarketOrders.Select(order => new OrderGroupDto
-                {
-                    OrderId = order.FOrderId,
-                    OrderNo = order.FOrderNo,
-                    SellerName = order.FSeller?.FSellerName ?? $"賣家 {order.FSellerId}",  // ← FSellerName ✓
-
-                    Items = order.TMarketOrderDetails.Select(d => new OrderItemDto
-                    {
-                        ProductId = d.FProductId,
-                        ProductName = d.FProduct?.FProductName ?? string.Empty,
-                        ImageUrl = d.FProduct?.TMarketProductImages
-                                    .OrderBy(img => img.FSortOrder)
-                                    .FirstOrDefault()?.FImageUrl is string url
-                                    ? $"{ImageBaseUrl}{url}"
-                                    : null,
-                        Quantity = d.FQuantity,
-                        UnitPrice = d.FUnitPrice,
-                        LineTotal = d.FUnitPrice * d.FQuantity
-                    }).ToList()
-
-                }).ToList()
+                OrderGroups = groups
             };
 
             return Ok(dto);
+        }
+
+        // CreateOrder 用：一張子訂單在寫入 DB 前的試算結果
+        private class OrderPlan
+        {
+            public int SellerId { get; set; }
+            public List<TMarketShoppingCart> Items { get; set; } = new();
+            public decimal ItemsAmount { get; set; }
+            public decimal ShippingFee { get; set; }
+            public decimal ProductDiscount { get; set; }
+            public decimal ShippingDiscount { get; set; }
+            public SellerShippingDto Shipping { get; set; } = null!;
+            public List<AppliedDiscount> Discounts { get; set; } = new();
+
+            // 子訂單應付金額；賣家券 + 全站券分攤理論上可能超過商品金額，最低保底 0
+            public decimal PayableAmount =>
+                Math.Max(0, ItemsAmount - ProductDiscount + ShippingFee - ShippingDiscount);
+        }
+
+        private class AppliedDiscount
+        {
+            public TMarketCoupon Coupon { get; set; } = null!;
+            public decimal Amount { get; set; }
         }
     }
 }
