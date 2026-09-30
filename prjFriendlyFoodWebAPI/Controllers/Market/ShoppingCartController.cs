@@ -71,6 +71,15 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
             return Ok(grouped);
         }
 
+        // GET /api/ShoppingCart/count — Header 購物車徽章用（購物車有幾項商品）
+        [HttpGet("count")]
+        public async Task<IActionResult> GetCartCount()
+        {
+            int userId = User.GetUserId();
+            var count = await _context.TMarketShoppingCarts.CountAsync(c => c.FUserId == userId);
+            return Ok(new { count });
+        }
+
         // POST /api/ShoppingCart/add — 加入購物車（原本的，維持不動）
         [HttpPost("add")]
         public async Task<IActionResult> AddToCart([FromBody] AddToCartDto dto)
