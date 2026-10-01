@@ -15,6 +15,7 @@ using prjFriendlyFoodWebAPI.Services.FoodMap.Interfaces;
 using prjFriendlyFoodWebAPI.Services.ImageUpload;
 using prjFriendlyFoodWebAPI.Services.Market;
 using prjFriendlyFoodWebAPI.Services.Member;
+using prjFriendlyFoodWebAPI.Services.Social;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -26,7 +27,7 @@ var apiKey = builder.Configuration["Cloudinary:ApiKey"];
 var apiSecret = builder.Configuration["Cloudinary:ApiSecret"];
 
 if (string.IsNullOrWhiteSpace(cloudName) || string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(apiSecret))
-    throw new InvalidOperationException("Cloudinary 設定未填寫，請檢查 appsettings.Development.json");
+   throw new InvalidOperationException("Cloudinary 設定未填寫，請檢查 appsettings.Development.json");
 
 var cloudinary = new Cloudinary(new Account(cloudName, apiKey, apiSecret));
 cloudinary.Api.Secure = true;   // 回傳 https 網址
@@ -126,6 +127,8 @@ builder.Services.AddScoped<IRecommendationServices, RecommendationService>();
 builder.Services.AddScoped<ITripServices, TripServices>();
 builder.Services.AddScoped<ITripOptimizationService, TripOptimizationService>();
 builder.Services.AddScoped<ITripPlanningService, TripPlanningService>();
+builder.Services.AddScoped<IPostService, PostService>();
+builder.Services.AddScoped<ICommentService, CommentService>();
 builder.Services.AddDbContext<FriendlyFoodDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddRecipeModule();
