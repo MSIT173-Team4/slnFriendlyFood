@@ -38,12 +38,21 @@ builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
 
 builder.Services.AddScoped<ICouponService, CouponService>();
 builder.Services.AddScoped<ISellerIdentityService, SellerIdentityService>();
+// CORS 允許的前端網址從設定讀取（appsettings 的 Cors:AllowedOrigins，
+// 或環境變數 Cors__AllowedOrigins__0、Cors__AllowedOrigins__1 ...）；沒設定時用本機開發的預設值。
+// 正式環境前端透過 nginx 轉發 /api，前後端同網域，不會觸發 CORS。
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+if (allowedOrigins is null || allowedOrigins.Length == 0)
+{
+    allowedOrigins = ["http://localhost:4200", "http://127.0.0.1:4200"];
+}
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAngularClient", policy =>
     {
         policy
-            .WithOrigins("http://localhost:4200", "http://127.0.0.1:4200")
+            .WithOrigins(allowedOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
