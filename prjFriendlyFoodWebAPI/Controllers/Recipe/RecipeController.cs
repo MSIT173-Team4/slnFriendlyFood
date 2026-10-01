@@ -1,7 +1,9 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using prjFriendlyFoodWebAPI.DTOs.Recipe;
 using prjFriendlyFoodWebAPI.DTOs.Recipe.Requests;
 using prjFriendlyFoodWebAPI.DTOs.Recipe.Responses;
+using prjFriendlyFoodWebAPI.Extensions;
 using prjFriendlyFoodWebAPI.Services.Recipe;
 
 namespace prjFriendlyFoodWebAPI.Controllers.Recipe;
@@ -46,15 +48,15 @@ public sealed class RecipeController(IRecipeService recipeService) : BaseControl
     }
 
     [HttpGet("{recipeId:int}/availability")]
+    [Authorize]
     public async Task<ActionResult<ApiResponse<RecipeAvailabilityDto>>> GetAvailability(
         int recipeId,
-        [FromQuery] int userId,
         [FromQuery] int targetServings,
         CancellationToken cancellationToken)
     {
         var result = await recipeService.GetAvailabilityAsync(
             recipeId,
-            userId,
+            User.GetUserId(),
             targetServings,
             cancellationToken);
         return FromServiceResult(result);
@@ -99,22 +101,27 @@ public sealed class RecipeController(IRecipeService recipeService) : BaseControl
     }
 
 
-    [HttpGet("shopping-list/user/{userId:int}")]
+    [HttpGet("shopping-list")]
+    [Authorize]
     public async Task<ActionResult<ApiResponse<RecipeShoppingListDto>>> GetShoppingList(
-        int userId,
         CancellationToken cancellationToken)
     {
-        var result = await recipeService.GetShoppingListAsync(userId, cancellationToken);
+        var result = await recipeService.GetShoppingListAsync(
+            User.GetUserId(),
+            cancellationToken);
         return FromServiceResult(result);
     }
 
-    [HttpPut("shopping-list/user/{userId:int}")]
+    [HttpPut("shopping-list")]
+    [Authorize]
     public async Task<ActionResult<ApiResponse<RecipeShoppingListDto>>> SaveShoppingList(
-        int userId,
         [FromBody] SaveRecipeShoppingListRequestDto request,
         CancellationToken cancellationToken)
     {
-        var result = await recipeService.SaveShoppingListAsync(userId, request, cancellationToken);
+        var result = await recipeService.SaveShoppingListAsync(
+            User.GetUserId(),
+            request,
+            cancellationToken);
         return FromServiceResult(result);
     }
 }
