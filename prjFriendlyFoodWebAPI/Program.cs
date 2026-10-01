@@ -19,22 +19,22 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-////Cloudinary-Star
-////=================================
-//var cloudName = builder.Configuration["Cloudinary:CloudName"];
-//var apiKey = builder.Configuration["Cloudinary:ApiKey"];
-//var apiSecret = builder.Configuration["Cloudinary:ApiSecret"];
+//Cloudinary-Star
+//=================================
+var cloudName = builder.Configuration["Cloudinary:CloudName"];
+var apiKey = builder.Configuration["Cloudinary:ApiKey"];
+var apiSecret = builder.Configuration["Cloudinary:ApiSecret"];
 
-//if (string.IsNullOrWhiteSpace(cloudName) || string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(apiSecret))
-//    throw new InvalidOperationException("Cloudinary 設定未填寫，請檢查 appsettings.Development.json");
+if (string.IsNullOrWhiteSpace(cloudName) || string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(apiSecret))
+   throw new InvalidOperationException("Cloudinary 設定未填寫，請檢查 appsettings.Development.json");
 
-//var cloudinary = new Cloudinary(new Account(cloudName, apiKey, apiSecret));
-//cloudinary.Api.Secure = true;   // 回傳 https 網址
+var cloudinary = new Cloudinary(new Account(cloudName, apiKey, apiSecret));
+cloudinary.Api.Secure = true;   // 回傳 https 網址
 
-//builder.Services.AddSingleton(cloudinary);
-//builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
-////================================
-////Cloudinary-End
+builder.Services.AddSingleton(cloudinary);
+builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
+//================================
+//Cloudinary-End
 
 builder.Services.AddScoped<ICouponService, CouponService>();
 builder.Services.AddScoped<ISellerIdentityService, SellerIdentityService>();
