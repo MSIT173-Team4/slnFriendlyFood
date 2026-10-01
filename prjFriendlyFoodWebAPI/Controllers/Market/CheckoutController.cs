@@ -20,11 +20,23 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         private readonly FriendlyFoodDbContext _context;
         private readonly IConfiguration _config;
         private readonly ICouponService _couponService;
-        public CheckoutController(FriendlyFoodDbContext context, IConfiguration config, ICouponService couponService)
+        private readonly IOrderQueryService _orderQuery;
+        private readonly IOrderEmailService _orderEmail;
+        private readonly ILogger<CheckoutController> _logger;
+        public CheckoutController(
+            FriendlyFoodDbContext context,
+            IConfiguration config,
+            ICouponService couponService,
+            IOrderQueryService orderQuery,
+            IOrderEmailService orderEmail,
+            ILogger<CheckoutController> logger)
         {
             _context = context;
             _config = config;
             _couponService = couponService;
+            _orderQuery = orderQuery;
+            _orderEmail = orderEmail;
+            _logger = logger;
         }
 
 
@@ -444,7 +456,17 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
 
             await _context.SaveChangesAsync();
 
-            // --- 9. 回傳 1|OK 給綠界 ---
+            //  --- 9.寄付款成功通知信：失敗只記錄 log，不影響回覆綠界（否則綠界會判定通知失敗而重送）
+            try
+            {
+                await _orderEmail.SendPaymentSuccessAsync(batch.FBatchId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "付款成功通知信寄送失敗，BatchId={BatchId}", batch.FBatchId);
+            }
+
+            // --- 10. 回傳 1|OK 給綠界 ---
             return Content("1|OK","text/plain");
 
         }
@@ -492,71 +514,9 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         [HttpGet("OrderComplete/{batchId}")]
         public async Task<IActionResult> GetOrderComplete(long batchId)
         {
-            int userId = User.GetUserId();
-            var batch = await _context.TMarketCheckoutBatches
-                .Include(b => b.TMarketOrders)
-                    .ThenInclude(o => o.FSeller)
-                .Include(b => b.TMarketOrders)
-                    .ThenInclude(o => o.TMarketOrderDetails)
-                        .ThenInclude(d => d.FProduct)
-                            .ThenInclude(p => p.TMarketProductImages)
-                            .FirstOrDefaultAsync(b => b.FBatchId == batchId && b.FUserId == userId);
-
-            if (batch == null)
+            var dto = await _orderQuery.GetOrderCompleteAsync(batchId, User.GetUserId());
+            if (dto == null)
                 return NotFound(new { message = "找不到此批次訂單" });
-
-            // 每張子訂單：收件資訊 + 金額拆解 + 品項
-            var groups = batch.TMarketOrders
-                .OrderBy(o => o.FOrderId)
-                .Select(order => new OrderGroupDto
-                {
-                    OrderId = order.FOrderId,
-                    OrderNo = order.FOrderNo,
-                    SellerName = order.FSeller?.FSellerName ?? $"賣家 {order.FSellerId}",
-
-                    RecipientName = order.FRecipientName ?? string.Empty,
-                    RecipientPhone = order.FRecipientPhone ?? string.Empty,
-                    ShippingAddress = order.FShippingAddress ?? string.Empty,
-                    ShippingMethod = order.FShippingMethod ?? string.Empty,
-
-                    PaymentStatus = order.FPaymentStatus,
-                    SubTotal = order.TMarketOrderDetails.Sum(d => d.FUnitPrice * d.FQuantity),
-                    ProductDiscount = order.FProductDiscount,
-                    ShippingFee = order.FShippingFee,
-                    ShippingDiscount = order.FShippingDiscount,
-                    OrderAmount = order.FTotalAmount,
-
-                    Items = order.TMarketOrderDetails.Select(d => new OrderItemDto
-                    {
-                        ProductId = d.FProductId,
-                        ProductName = d.FProduct?.FProductName ?? string.Empty,
-                        ImageUrl = d.FProduct?.TMarketProductImages
-                                    .OrderBy(img => img.FSortOrder)
-                                    .FirstOrDefault()?.FImageUrl,
-                        Quantity = d.FQuantity,
-                        UnitPrice = d.FUnitPrice,
-                        LineTotal = d.FUnitPrice * d.FQuantity
-                    }).ToList()
-                })
-                .ToList();
-
-            var dto = new OrderCompleteDto
-            {
-                BatchId = batch.FBatchId,
-                BatchNo = batch.FBatchNo,
-                PaidAt = batch.FPaidAt ?? batch.FCreatedDate,
-                PaymentMethod = batch.FPaymentMethod ?? "信用卡",
-                PaymentStatus = batch.FPaymentStatus,
-
-                // 總覽直接由各子訂單加總，四個數字各自獨立，不會重複扣
-                SubTotal = groups.Sum(g => g.SubTotal),
-                ProductDiscount = groups.Sum(g => g.ProductDiscount),
-                ShippingFee = groups.Sum(g => g.ShippingFee),
-                ShippingDiscount = groups.Sum(g => g.ShippingDiscount),
-                TotalAmount = batch.FTotalAmount,
-
-                OrderGroups = groups
-            };
 
             return Ok(dto);
         }
