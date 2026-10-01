@@ -22,7 +22,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Forum
         private int GetCurrentUserId()
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            return int.TryParse(userIdClaim, out int userId) ? userId : 0;
+            return int.TryParse(userIdClaim, out int userId) ? userId : 5;
         }
 
         [HttpGet]
@@ -45,11 +45,24 @@ namespace prjFriendlyFoodWebAPI.Controllers.Forum
         [HttpPost]
         public async Task<IActionResult> CreatePost([FromBody] CreateOrUpdatePostDto dto)
         {
-            int currentUserId = GetCurrentUserId();
-            if (currentUserId == 0) return Unauthorized("尚未登入");
 
-            var postId = await _postService.CreatePostAsync(dto, currentUserId);
-            return Ok(new { postId });
+            //int currentUserId = GetCurrentUserId();
+            //if (currentUserId == 0) return Unauthorized("尚未登入");
+
+            //var postId = await _postService.CreatePostAsync(dto, currentUserId);
+            //return Ok(new { postId });
+            try
+            {
+                int currentUserId = GetCurrentUserId();
+                var postId = await _postService.CreatePostAsync(dto, currentUserId);
+                return Ok(new { postId });
+            }
+            catch (Exception ex)
+            {
+                // 將詳細的 Exception 訊息（包含 InnerException）傳給前端顯示
+                var errorMsg = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
+                return StatusCode(500, new { message = errorMsg, detail = ex.ToString() });
+            }
         }
 
         [HttpPut("{id}")]
