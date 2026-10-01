@@ -61,7 +61,8 @@ namespace prjFriendlyFoodWebAPI.Services.Social
                 FLikes = 0,
                 FViews = 0,
                 FPostDate = DateTime.Now,
-                FPostState = 1
+                FPostState = 1,
+                TPostBlockTables = new List<TPostBlockTable>()
             };
 
             _context.TPostTables.Add(newPost);
