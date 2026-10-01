@@ -366,3 +366,6 @@ FodyWeavers.xsd
 **/appsettings.Development.json
 */.env
 .env
+
+appsettings.Development.json
+/prjFriendlyFoodWebAPI/wwwroot/images/Member

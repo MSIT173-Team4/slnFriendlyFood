@@ -22,6 +22,15 @@
         public string SellerName { get; set; } = "";
         public string? SellerDescription { get; set; }
         public int SellerProductCount { get; set; }
+        /// <summary>
+        /// 目前登入者是否已收藏（未登入一律 false）
+        /// </summary>
+        public bool IsFavorite { get; set; }
+
+        /// <summary>
+        /// 是否為目前登入者自己賣場的商品（未登入一律 false）
+        /// </summary>
+        public bool IsOwnProduct { get; set; }
     }
 
     public class MarketReviewDto

@@ -1,7 +1,5 @@
 ﻿using prjFriendlyFoodWebAPI.DTOs.FoodMap;
 using prjFriendlyFoodWebAPI.Services.FoodMap.Interfaces;
-using System.Xml.Linq;
-using static prjFriendlyFoodWebAPI.Services.FoodMap.RecommendationService;
 
 namespace prjFriendlyFoodWebAPI.Services.FoodMap
 {
@@ -26,10 +24,10 @@ namespace prjFriendlyFoodWebAPI.Services.FoodMap
 
             // 全部要買的品項（用 ShoppingListItemId 當唯一鍵，
             // 因為同一個 Item 可能同時出現在多個店家分類底下）
-            var uncoveredItemIds = mapping.ItemsByPlaceCategory
-                .SelectMany(kv => kv.Value)
+            // 分母用「全部待買品項」（包含找不到店家類型的），
+            // 原本只算有對應到分類的品項，會讓覆蓋率虛高、買不到的品項也不會列出來
+            var uncoveredItemIds = mapping.AllItems
                 .Select(i => i.FShoppingListItemId)
-                .Distinct()
                 .ToHashSet();
 
             var remainingCandidates = new List<PlaceCandidateWithLocationDto>(candidatePlaces);
@@ -107,8 +105,7 @@ namespace prjFriendlyFoodWebAPI.Services.FoodMap
             var orderedPlaces = OrderPlacesByDistance(
                 selectedPlaces, candidatePlaces, originLatitude, originLongitude);
 
-            var uncoveredItemNames = mapping.ItemsByPlaceCategory
-                .SelectMany(kv => kv.Value)
+            var uncoveredItemNames = mapping.AllItems
                 .Where(i => uncoveredItemIds.Contains(i.FShoppingListItemId))
                 .Select(i => i.FIngredientName)
                 .Distinct()
