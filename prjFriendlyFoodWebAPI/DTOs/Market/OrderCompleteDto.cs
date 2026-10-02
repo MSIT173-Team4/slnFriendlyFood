@@ -53,5 +53,7 @@
         public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }
         public decimal LineTotal { get; set; }   // UnitPrice * Quantity
+        public int OrderDetailId { get; set; }   // 評價時用（目前只有我的訂單會填）
+        public bool IsReviewed { get; set; }     // 這項商品是否已評價（目前只有我的訂單會填）
     }
 }

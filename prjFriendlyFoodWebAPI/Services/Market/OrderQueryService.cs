@@ -195,7 +195,9 @@ namespace prjFriendlyFoodWebAPI.Services.Market
                                     .FirstOrDefault(),
                         Quantity = d.FQuantity,
                         UnitPrice = d.FUnitPrice,
-                        LineTotal = d.FUnitPrice * d.FQuantity
+                        LineTotal = d.FUnitPrice * d.FQuantity,
+                        OrderDetailId = d.FOrderDetailsId,
+                        IsReviewed = _context.TMarketProductReviews.Any(r => r.FOrderDetailsId == d.FOrderDetailsId)
                     }).ToList()
                 })
                 .ToListAsync();

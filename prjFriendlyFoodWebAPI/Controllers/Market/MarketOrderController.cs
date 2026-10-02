@@ -16,13 +16,20 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         private readonly ICartService _cartService;
         private readonly IOrderCancellationService _cancellation;
         private readonly IOrderFulfillmentService _fulfillment;
+        private readonly IReviewService _reviewService;
 
-        public MarketOrderController(IOrderQueryService orderQuery, ICartService cartService, IOrderCancellationService cancellation, IOrderFulfillmentService fulfillment)
+        public MarketOrderController(
+            IOrderQueryService orderQuery, 
+            ICartService cartService, 
+            IOrderCancellationService cancellation, 
+            IOrderFulfillmentService fulfillment,
+            IReviewService reviewService)
         {
             _orderQuery = orderQuery;
             _cartService = cartService;
             _cancellation = cancellation;
             _fulfillment = fulfillment;
+            _reviewService = reviewService;
         }
 
         // GET /api/MarketOrder/my?tab=all&range=6m&keyword=&page=1 — 我的訂單
@@ -82,6 +89,19 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         public async Task<IActionResult> ConfirmReceipt(long orderId)
         {
             var result = await _fulfillment.ConfirmReceiptAsync(User.GetUserId(), orderId);
+            return result.Outcome switch
+            {
+                OrderActionOutcome.Success => Ok(new { message = result.Message }),
+                OrderActionOutcome.NotFound => NotFound(new { message = result.Message }),
+                _ => BadRequest(new { message = result.Message })
+            };
+        }
+
+        // POST /api/MarketOrder/{orderId}/reviews — 為已完成訂單的商品送出評價
+        [HttpPost("{orderId:long}/reviews")]
+        public async Task<IActionResult> SubmitReviews(long orderId, [FromBody] SubmitReviewsDto dto)
+        {
+            var result = await _reviewService.SubmitAsync(User.GetUserId(), orderId, dto.Items);
             return result.Outcome switch
             {
                 OrderActionOutcome.Success => Ok(new { message = result.Message }),
