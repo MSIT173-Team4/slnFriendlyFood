@@ -41,6 +41,7 @@ builder.Services.AddScoped<ICouponService, CouponService>();
 builder.Services.AddScoped<ISellerIdentityService, SellerIdentityService>();
 builder.Services.AddScoped<IOrderQueryService, OrderQueryService>();
 builder.Services.AddScoped<IOrderEmailService, OrderEmailService>();
+builder.Services.AddScoped<ICartService, CartService>();
 // CORS 允許的前端網址從設定讀取（appsettings 的 Cors:AllowedOrigins，
 // 或環境變數 Cors__AllowedOrigins__0、Cors__AllowedOrigins__1 ...）；沒設定時用本機開發的預設值。
 // 正式環境前端透過 nginx 轉發 /api，前後端同網域，不會觸發 CORS。
