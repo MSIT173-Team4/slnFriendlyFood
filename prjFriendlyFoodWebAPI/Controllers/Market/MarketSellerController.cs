@@ -17,11 +17,13 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
 
         private readonly FriendlyFoodDbContext _context;
         private readonly ISellerIdentityService _sellerIdentity;
+        private readonly IOrderCancellationService _cancellation;
 
-        public MarketSellerController(FriendlyFoodDbContext context, ISellerIdentityService sellerIdentity)
+        public MarketSellerController(FriendlyFoodDbContext context, ISellerIdentityService sellerIdentity, IOrderCancellationService cancellation)
         {
             _context = context;
             _sellerIdentity = sellerIdentity;
+            _cancellation = cancellation;
         }
 
         // GET /api/MarketSeller/me — 目前登入者是否為有效賣家，以及賣場與本人資訊
@@ -30,6 +32,9 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         {
             int userId = User.GetUserId();
             var seller = await _sellerIdentity.GetActiveSellerAsync(userId);
+
+            // 被動觸發：賣家看到的庫存與數量才是最新的
+            await _cancellation.CancelExpiredBatchesAsync();
 
             if (seller == null)
                 return Ok(new { isSeller = false });

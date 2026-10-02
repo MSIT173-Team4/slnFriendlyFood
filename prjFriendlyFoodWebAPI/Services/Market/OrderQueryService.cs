@@ -2,6 +2,7 @@
 using prjFriendlyFoodWebAPI.DTOs.Market;
 using prjFriendlyFoodWebAPI.Models;
 using System.Linq.Expressions;
+using Microsoft.Extensions.Options;
 
 namespace prjFriendlyFoodWebAPI.Services.Market
 {
@@ -16,10 +17,12 @@ namespace prjFriendlyFoodWebAPI.Services.Market
     public class OrderQueryService : IOrderQueryService
     {
         private readonly FriendlyFoodDbContext _context;
+        private readonly MarketOptions _marketOptions;
 
-        public OrderQueryService(FriendlyFoodDbContext context)
+        public OrderQueryService(FriendlyFoodDbContext context, IOptions<MarketOptions> marketOptions)
         {
             _context = context;
+            _marketOptions = marketOptions.Value;
         }
 
         public async Task<OrderCompleteDto?> GetOrderCompleteAsync(long batchId, int? userId)
@@ -52,7 +55,7 @@ namespace prjFriendlyFoodWebAPI.Services.Market
                     RecipientPhone = order.FRecipientPhone ?? string.Empty,
                     ShippingAddress = order.FShippingAddress ?? string.Empty,
                     ShippingMethod = order.FShippingMethod ?? string.Empty,
-
+                    OrderStatus = order.FOrderStatus,
                     PaymentStatus = order.FPaymentStatus,
                     SubTotal = order.TMarketOrderDetails.Sum(d => d.FUnitPrice * d.FQuantity),
                     ProductDiscount = order.FProductDiscount,
@@ -145,6 +148,7 @@ namespace prjFriendlyFoodWebAPI.Services.Market
 
             var totalCount = await query.CountAsync();
 
+            var timeout = _marketOptions.PaymentTimeoutMinutes;
             var items = await query
                 .OrderByDescending(o => o.FOrderDate)
                 .ThenByDescending(o => o.FOrderId)
@@ -169,6 +173,13 @@ namespace prjFriendlyFoodWebAPI.Services.Market
                     ShippingDiscount = o.FShippingDiscount,
                     OrderAmount = o.FTotalAmount,
 
+                    PaymentDeadline = o.FBatch.FCreatedDate.AddMinutes(timeout),
+                    BatchSellerNames = _context.TMarketOrders
+                                    .Where(x => x.FBatchId == o.FBatchId)
+                                    .OrderBy(x => x.FOrderId)
+                                    .Select(x => x.FSeller.FSellerName)
+                                    .ToList(),
+
                     CanReview = o.FOrderStatus == OrderCompleted &&
                                 o.TMarketOrderDetails.Any(d =>
                                     !_context.TMarketProductReviews.Any(r => r.FOrderDetailsId == d.FOrderDetailsId)),
@@ -190,7 +201,13 @@ namespace prjFriendlyFoodWebAPI.Services.Market
 
             // 狀態代碼在記憶體中判斷（規則與 TabFilter 一致）
             foreach (var item in items)
+            {
                 item.StatusKey = GetStatusKey(item.OrderStatus, item.PaymentStatus, item.ShippingStatus);
+
+                // 付款期限只對待付款的訂單有意義
+                if (item.StatusKey != "pending-payment")
+                    item.PaymentDeadline = null;
+            }
 
             return new MyOrderListResultDto
             {

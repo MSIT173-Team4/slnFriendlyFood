@@ -9,6 +9,7 @@ using System.Web;
 using static prjFriendlyFoodWebAPI.DTOs.Market.CheckoutDto;
 using prjFriendlyFoodWebAPI.Services.Market;
 using prjFriendlyFoodWebAPI.Extensions;
+using Microsoft.Extensions.Options;
 
 namespace prjFriendlyFoodWebAPI.Controllers.Market
 {
@@ -23,13 +24,17 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         private readonly IOrderQueryService _orderQuery;
         private readonly IOrderEmailService _orderEmail;
         private readonly ILogger<CheckoutController> _logger;
+        private readonly IOrderCancellationService _cancellation;
+        private readonly MarketOptions _marketOptions;
         public CheckoutController(
             FriendlyFoodDbContext context,
             IConfiguration config,
             ICouponService couponService,
             IOrderQueryService orderQuery,
             IOrderEmailService orderEmail,
-            ILogger<CheckoutController> logger)
+            ILogger<CheckoutController> logger,
+            IOrderCancellationService cancellation,
+            IOptions<MarketOptions> marketOptions)
         {
             _context = context;
             _config = config;
@@ -37,6 +42,8 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
             _orderQuery = orderQuery;
             _orderEmail = orderEmail;
             _logger = logger;
+            _cancellation = cancellation;
+            _marketOptions = marketOptions.Value;
         }
 
 
@@ -45,13 +52,29 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         {
             int userId = User.GetUserId();
 
+            // 被動觸發：先處理逾期的批次，下面讀到的狀態才是最新的
+            await _cancellation.CancelExpiredBatchesAsync();
+
             var batch = await _context.TMarketCheckoutBatches
                 .FirstOrDefaultAsync(b => b.FBatchId == batchId && b.FUserId == userId);
-            if (batch == null)
-                return NotFound("找不到此結帳批次");
 
-            if (batch.FPaymentStatus != 0)
-                return BadRequest("此批次已付款或已取消，無法重複付款");
+            if (batch == null)
+                return PayMessagePage("找不到訂單", "找不到此筆訂單，請回到我的訂單確認。");
+
+            if (batch.FPaymentStatus == MarketStatus.BatchPayment.Paid)
+                return PayMessagePage("訂單已付款", "此訂單已完成付款，不需要重複付款。");
+
+            if (batch.FPaymentStatus != MarketStatus.BatchPayment.Unpaid)
+                return PayMessagePage("訂單已取消", "此訂單已取消或已逾期，無法付款。如仍需要商品，可使用「再買一次」重新下單。");
+
+            // 保險：就算逾期取消還沒執行到，超過期限也不能付款
+            if (DateTime.Now > _marketOptions.PaymentDeadlineOf(batch.FCreatedDate))
+                return PayMessagePage("付款期限已過", "此訂單已超過付款期限，系統將自動取消並釋出庫存。");
+
+            // 每次送往綠界都換一個新的交易編號：
+            // 綠界不接受重複的 MerchantTradeNo，第二次付款若沿用舊編號會被拒絕
+            batch.FBatchNo = GenerateBatchNo();
+            await _context.SaveChangesAsync();
 
             var merchantId = _config["ECPay:MerchantID"];
             var hashKey = _config["ECPay:HashKey"];
@@ -117,6 +140,26 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                     <script>document.getElementById('ecpayForm').submit();</script>
                 </body>
                 </html>";
+        }
+
+        // Pay 是瀏覽器整頁跳轉過來的，錯誤時回傳一個簡單的說明頁，而不是一行純文字
+        private ContentResult PayMessagePage(string title, string message)
+        {
+            var ordersUrl = $"{_config["AngularBaseUrl"]}/market/orders";
+            var html = $@"
+                    <!DOCTYPE html>
+                    <html lang=""zh-TW"">
+                    <head><meta charset=""utf-8""><meta name=""viewport"" content=""width=device-width, initial-scale=1"">
+                    <title>{title}｜友料美食</title></head>
+                    <body style=""margin:0;background:#fdf7f4;font-family:'Microsoft JhengHei',Arial,sans-serif;color:#2b1b14;"">
+                      <div style=""max-width:480px;margin:80px auto;padding:32px;background:#fff;border-radius:12px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06);"">
+                        <h1 style=""margin:0 0 12px;font-size:22px;color:#832600;"">{title}</h1>
+                        <p style=""margin:0 0 24px;color:#6b5a52;line-height:1.7;"">{message}</p>
+                        <a href=""{ordersUrl}"" style=""display:inline-block;padding:10px 24px;border-radius:8px;background:#832600;color:#fff;text-decoration:none;font-weight:600;"">回到我的訂單</a>
+                      </div>
+                    </body>
+                    </html>";
+            return Content(html, "text/html; charset=utf-8");
         }
 
 
@@ -431,32 +474,65 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                 return Content("1|OK", "text/plain");//通知綠界收到了
             }
 
-            // --- 6. 用 MerchantTradeNo 找到當初fBatchNo對應的批次 ---
+            // --- 6. 用 MerchantTradeNo 找批次（只讀取需要的欄位） ---
             var batch = await _context.TMarketCheckoutBatches
-                .Include(b => b.TMarketOrders)
-                .FirstOrDefaultAsync(b => b.FBatchNo == merchantTradeNo);
+                .AsNoTracking()
+                .Where(b => b.FBatchNo == merchantTradeNo)
+                .Select(b => new { b.FBatchId, b.FPaymentStatus })
+                .FirstOrDefaultAsync();
 
             if (batch == null)
-                return Content("1|OK", "text/plain");
-
-            if (batch.FPaymentStatus == 1)
-                return Content("1|OK", "text/plain");
-
-            // --- 7. 更新批次付款狀態 ---
-            batch.FPaymentStatus = 1;
-            batch.FPaymentTradeNo = tradeNo;
-            batch.FPaidAt = DateTime.Now;
-
-            // --- 8. 把所有子訂單也更新成已付款 ---
-            foreach(var order in batch.TMarketOrders)
             {
-                order.FPaymentStatus = 1;
-                order.FOrderStatus = 1;
+                // 例如買家開了兩個綠界頁面、在舊頁面付款，舊的交易編號已被換掉
+                _logger.LogError("付款成功但找不到對應的結帳批次，需人工確認退款：MerchantTradeNo={MerchantTradeNo}, TradeNo={TradeNo}",
+                    merchantTradeNo, tradeNo);
+                return Content("1|OK", "text/plain");
             }
 
-            await _context.SaveChangesAsync();
+            // 綠界重送同一筆通知：已處理過就直接回覆
+            if (batch.FPaymentStatus == MarketStatus.BatchPayment.Paid)
+                return Content("1|OK", "text/plain");
 
-            //  --- 9.寄付款成功通知信：失敗只記錄 log，不影響回覆綠界（否則綠界會判定通知失敗而重送）
+            // --- 7. 原子性標記為已付款：只有「仍未付款」的批次能成功，避免與逾期取消同時發生 ---
+            using (var tx = await _context.Database.BeginTransactionAsync())
+            {
+                var paidAt = DateTime.Now;
+                var updated = await _context.TMarketCheckoutBatches
+                    .Where(b => b.FBatchId == batch.FBatchId && b.FPaymentStatus == MarketStatus.BatchPayment.Unpaid)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(b => b.FPaymentStatus, MarketStatus.BatchPayment.Paid)
+                        .SetProperty(b => b.FPaymentTradeNo, tradeNo)
+                        .SetProperty(b => b.FPaidAt, (DateTime?)paidAt));
+
+                if (updated == 0)
+                {
+                    await tx.RollbackAsync();
+
+                    // 沒更新到：可能是同一筆通知剛好同時送達（已被另一次處理），或批次已被取消
+                    var currentStatus = await _context.TMarketCheckoutBatches
+                        .Where(b => b.FBatchId == batch.FBatchId)
+                        .Select(b => b.FPaymentStatus)
+                        .FirstAsync();
+
+                    if (currentStatus != MarketStatus.BatchPayment.Paid)
+                    {
+                        _logger.LogError("已付款但結帳批次已取消，需人工退款：BatchId={BatchId}, TradeNo={TradeNo}",
+                            batch.FBatchId, tradeNo);
+                    }
+                    return Content("1|OK", "text/plain");
+                }
+
+                // --- 8. 子訂單一起改為已付款、已成立 ---
+                await _context.TMarketOrders
+                    .Where(o => o.FBatchId == batch.FBatchId)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(o => o.FPaymentStatus, MarketStatus.Payment.Paid)
+                        .SetProperty(o => o.FOrderStatus, MarketStatus.Order.Established));
+
+                await tx.CommitAsync();
+            }
+
+            // --- 9. 寄付款成功通知信：失敗只記錄 log，不影響回覆綠界 ---
             try
             {
                 await _orderEmail.SendPaymentSuccessAsync(batch.FBatchId);
@@ -467,7 +543,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
             }
 
             // --- 10. 回傳 1|OK 給綠界 ---
-            return Content("1|OK","text/plain");
+            return Content("1|OK", "text/plain");
 
         }
 

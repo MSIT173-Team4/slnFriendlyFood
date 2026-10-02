@@ -40,6 +40,7 @@
         public decimal ShippingFee { get; set; }
         public decimal ShippingDiscount { get; set; }
         public decimal OrderAmount { get; set; }       // = 子訂單 FTotalAmount
+        public int OrderStatus { get; set; }   // 子訂單狀態；3 = 已取消
 
         public List<OrderItemDto> Items { get; set; } = new();
     }

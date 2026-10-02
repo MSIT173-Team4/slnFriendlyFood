@@ -24,6 +24,12 @@
 
         public bool CanReview { get; set; }        // 已完成且還有未評價的明細
 
+        // 付款期限（只有待付款的訂單有值）
+        public DateTime? PaymentDeadline { get; set; }
+
+        // 同一次結帳的所有賣家名稱（取消確認視窗用：取消會整批一起取消）
+        public List<string> BatchSellerNames { get; set; } = new();
+
         public List<OrderItemDto> Items { get; set; } = new();
     }
 

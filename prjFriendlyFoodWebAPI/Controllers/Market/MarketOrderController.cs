@@ -14,11 +14,13 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
     {
         private readonly IOrderQueryService _orderQuery;
         private readonly ICartService _cartService;
+        private readonly IOrderCancellationService _cancellation;
 
-        public MarketOrderController(IOrderQueryService orderQuery, ICartService cartService)
+        public MarketOrderController(IOrderQueryService orderQuery, ICartService cartService, IOrderCancellationService cancellation)
         {
             _orderQuery = orderQuery;
             _cartService = cartService;
+            _cancellation = cancellation;
         }
 
         // GET /api/MarketOrder/my?tab=all&range=6m&keyword=&page=1 — 我的訂單
@@ -38,6 +40,8 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
             if (page < 1)
                 return BadRequest(new { message = "頁碼必須從 1 開始" });
 
+            // 被動觸發：先把逾期的訂單取消，買家看到的狀態才會是最新的
+            await _cancellation.CancelExpiredBatchesAsync();
             var result = await _orderQuery.GetMyOrdersAsync(User.GetUserId(), tab, range, keyword, page);
             return Ok(result);
         }
@@ -55,6 +59,20 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                 return NotFound(new { message = "找不到訂單" });
 
             return Ok(result);
+        }
+
+        // POST /api/MarketOrder/{orderId}/cancel — 取消未付款訂單（整個結帳批次一起取消）
+        [HttpPost("{orderId:long}/cancel")]
+        public async Task<IActionResult> Cancel(long orderId)
+        {
+            var result = await _cancellation.CancelByBuyerAsync(User.GetUserId(), orderId);
+
+            return result.Outcome switch
+            {
+                CancelOutcome.Cancelled => Ok(new { message = result.Message }),
+                CancelOutcome.NotFound => NotFound(new { message = result.Message }),
+                _ => BadRequest(new { message = result.Message })
+            };
         }
     }
 }
