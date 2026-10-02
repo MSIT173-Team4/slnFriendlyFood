@@ -14,4 +14,13 @@
             "6m", "1y", "all"
         };
     }
+
+    // 賣家訂單 API 可接受的分頁值
+    public static class SellerOrderOptions
+    {
+        public static readonly IReadOnlySet<string> Tabs = new HashSet<string>
+    {
+        "all", "pending-ship", "shipping", "completed"
+    };
+    }
 }

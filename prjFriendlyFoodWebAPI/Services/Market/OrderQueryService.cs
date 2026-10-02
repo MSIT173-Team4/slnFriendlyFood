@@ -12,6 +12,7 @@ namespace prjFriendlyFoodWebAPI.Services.Market
         // userId 為 null：不檢查擁有者（系統內部寄信用，呼叫端須自行確保安全）
         Task<OrderCompleteDto?> GetOrderCompleteAsync(long batchId, int? userId);
         Task<MyOrderListResultDto> GetMyOrdersAsync(int userId, string tab, string range, string? keyword, int page);
+        Task<SellerOrderListResultDto> GetSellerOrdersAsync(int sellerId, string tab, string? keyword, int page);
     }
 
     public class OrderQueryService : IOrderQueryService
@@ -216,6 +217,112 @@ namespace prjFriendlyFoodWebAPI.Services.Market
                 Counts = counts
             };
         }
+
+        // ── 賣家訂單 ───────────────────────────────────────────
+
+        public async Task<SellerOrderListResultDto> GetSellerOrdersAsync(
+            int sellerId, string tab, string? keyword, int page)
+        {
+            if (page < 1) page = 1;
+
+            // 賣家只看「自己賣場、已付款、未取消」的訂單；未付款與已取消的訂單賣家無事可做
+            var baseQuery = _context.TMarketOrders
+                .AsNoTracking()
+                .Where(o => o.FSellerId == sellerId
+                         && o.FPaymentStatus == MarketStatus.Payment.Paid
+                         && o.FOrderStatus != MarketStatus.Order.Cancelled);
+
+            var counts = new SellerOrderCountsDto
+            {
+                PendingShip = await baseQuery.CountAsync(SellerTabFilter("pending-ship")),
+                Shipping = await baseQuery.CountAsync(SellerTabFilter("shipping")),
+                Completed = await baseQuery.CountAsync(SellerTabFilter("completed")),
+                All = await baseQuery.CountAsync()
+            };
+
+            var query = baseQuery.Where(SellerTabFilter(tab));
+
+            if (!string.IsNullOrWhiteSpace(keyword))
+            {
+                var k = keyword.Trim();
+                query = query.Where(o =>
+                    o.FOrderNo.Contains(k) ||
+                    o.FRecipientName.Contains(k) ||
+                    o.TMarketOrderDetails.Any(d => d.FProduct.FProductName.Contains(k)));
+            }
+
+            var totalCount = await query.CountAsync();
+
+            // 待出貨：最早的排前面（先付款先出貨）；其他分頁：最新的排前面
+            query = tab == "pending-ship"
+                ? query.OrderBy(o => o.FOrderDate).ThenBy(o => o.FOrderId)
+                : query.OrderByDescending(o => o.FOrderDate).ThenByDescending(o => o.FOrderId);
+
+            var items = await query
+                .Skip((page - 1) * PageSize)
+                .Take(PageSize)
+                .Select(o => new SellerOrderDto
+                {
+                    OrderId = o.FOrderId,
+                    OrderNo = o.FOrderNo,
+                    OrderDate = o.FOrderDate,
+                    PaidAt = o.FBatch.FPaidAt,
+
+                    RecipientName = o.FRecipientName,
+                    RecipientPhone = o.FRecipientPhone,
+                    ShippingAddress = o.FShippingAddress,
+                    ShippingMethod = o.FShippingMethod,
+
+                    OrderStatus = o.FOrderStatus,
+                    ShippingStatus = o.FShippingStatus,
+
+                    SubTotal = o.TMarketOrderDetails.Sum(d => d.FUnitPrice * d.FQuantity),
+                    ProductDiscount = o.FProductDiscount,
+                    ShippingFee = o.FShippingFee,
+                    ShippingDiscount = o.FShippingDiscount,
+                    OrderAmount = o.FTotalAmount,
+
+                    Items = o.TMarketOrderDetails.Select(d => new OrderItemDto
+                    {
+                        ProductId = d.FProductId,
+                        ProductName = d.FProduct.FProductName,
+                        ImageUrl = d.FProduct.TMarketProductImages
+                                    .OrderBy(img => img.FSortOrder)
+                                    .Select(img => img.FImageUrl)
+                                    .FirstOrDefault(),
+                        Quantity = d.FQuantity,
+                        UnitPrice = d.FUnitPrice,
+                        LineTotal = d.FUnitPrice * d.FQuantity
+                    }).ToList()
+                })
+                .ToListAsync();
+
+            // 已付款的訂單，狀態代碼規則與買家端相同，直接沿用
+            foreach (var item in items)
+                item.StatusKey = GetStatusKey(item.OrderStatus, MarketStatus.Payment.Paid, item.ShippingStatus);
+
+            return new SellerOrderListResultDto
+            {
+                Items = items,
+                TotalCount = totalCount,
+                Counts = counts
+            };
+        }
+
+        // 賣家訂單各分頁條件（基礎條件已限定已付款、未取消）
+        private static Expression<Func<TMarketOrder, bool>> SellerTabFilter(string tab) => tab switch
+        {
+            "pending-ship" => o => o.FOrderStatus != MarketStatus.Order.Completed
+                                && o.FShippingStatus == MarketStatus.Shipping.Pending,
+
+            "shipping" => o => o.FOrderStatus != MarketStatus.Order.Completed
+                            && (o.FShippingStatus == MarketStatus.Shipping.InTransit
+                                || o.FShippingStatus == MarketStatus.Shipping.Delivered),
+
+            "completed" => o => o.FOrderStatus == MarketStatus.Order.Completed,
+
+            _ => o => true   // all
+        };
 
         // 時間範圍：6m 近半年（預設）／1y 一年內／all 全部
         private static DateTime? GetSinceDate(string range) => range switch

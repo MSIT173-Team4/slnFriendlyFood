@@ -134,6 +134,7 @@ builder.Services.AddScoped<ITripOptimizationService, TripOptimizationService>();
 builder.Services.AddScoped<ITripPlanningService, TripPlanningService>();
 builder.Services.AddScoped<IPostService, PostService>();
 builder.Services.AddScoped<ICommentService, CommentService>();
+builder.Services.AddScoped<IOrderFulfillmentService, OrderFulfillmentService>();
 builder.Services.Configure<MarketOptions>(builder.Configuration.GetSection("Market"));
 // 只有設定開啟時才註冊背景排程（本機開、Cloud Run 關）
 if (builder.Configuration.GetValue<bool>("Market:EnableExpiryWorker"))

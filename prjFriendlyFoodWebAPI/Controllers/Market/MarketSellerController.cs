@@ -18,12 +18,20 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         private readonly FriendlyFoodDbContext _context;
         private readonly ISellerIdentityService _sellerIdentity;
         private readonly IOrderCancellationService _cancellation;
+        private readonly IOrderQueryService _orderQuery;
+        private readonly IOrderFulfillmentService _fulfillment;
 
-        public MarketSellerController(FriendlyFoodDbContext context, ISellerIdentityService sellerIdentity, IOrderCancellationService cancellation)
+        public MarketSellerController(FriendlyFoodDbContext context, 
+            ISellerIdentityService sellerIdentity, 
+            IOrderCancellationService cancellation, 
+            IOrderQueryService orderQuery,
+            IOrderFulfillmentService fulfillment)
         {
             _context = context;
             _sellerIdentity = sellerIdentity;
             _cancellation = cancellation;
+            _orderQuery = orderQuery;
+            _fulfillment = fulfillment;
         }
 
         // GET /api/MarketSeller/me — 目前登入者是否為有效賣家，以及賣場與本人資訊
@@ -95,6 +103,44 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                 unlisted = CountOf(3),
                 pendingOrders
             });
+        }
+
+        // GET /api/MarketSeller/orders?tab=pending-ship&keyword=&page=1 — 賣家訂單列表
+        [HttpGet("orders")]
+        public async Task<IActionResult> GetOrders(
+            [FromQuery] string tab = "pending-ship",
+            [FromQuery] string? keyword = null,
+            [FromQuery] int page = 1)
+        {
+            var seller = await _sellerIdentity.GetActiveSellerAsync(User.GetUserId());
+            if (seller == null)
+                return StatusCode(403, new { message = "您尚未開通賣場，或賣場已停權" });
+
+            if (!SellerOrderOptions.Tabs.Contains(tab))
+                return BadRequest(new { message = $"不支援的分頁「{tab}」，可用值：{string.Join("、", SellerOrderOptions.Tabs)}" });
+
+            if (page < 1)
+                return BadRequest(new { message = "頁碼必須從 1 開始" });
+
+            var result = await _orderQuery.GetSellerOrdersAsync(seller.FId, tab, keyword, page);
+            return Ok(result);
+        }
+
+        // POST /api/MarketSeller/orders/{orderId}/ship — 出貨
+        [HttpPost("orders/{orderId:long}/ship")]
+        public async Task<IActionResult> ShipOrder(long orderId)
+        {
+            var seller = await _sellerIdentity.GetActiveSellerAsync(User.GetUserId());
+            if (seller == null)
+                return StatusCode(403, new { message = "您尚未開通賣場，或賣場已停權" });
+
+            var result = await _fulfillment.ShipAsync(seller.FId, orderId);
+            return result.Outcome switch
+            {
+                OrderActionOutcome.Success => Ok(new { message = result.Message }),
+                OrderActionOutcome.NotFound => NotFound(new { message = result.Message }),
+                _ => BadRequest(new { message = result.Message })
+            };
         }
     }
 }

@@ -15,12 +15,14 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         private readonly IOrderQueryService _orderQuery;
         private readonly ICartService _cartService;
         private readonly IOrderCancellationService _cancellation;
+        private readonly IOrderFulfillmentService _fulfillment;
 
-        public MarketOrderController(IOrderQueryService orderQuery, ICartService cartService, IOrderCancellationService cancellation)
+        public MarketOrderController(IOrderQueryService orderQuery, ICartService cartService, IOrderCancellationService cancellation, IOrderFulfillmentService fulfillment)
         {
             _orderQuery = orderQuery;
             _cartService = cartService;
             _cancellation = cancellation;
+            _fulfillment = fulfillment;
         }
 
         // GET /api/MarketOrder/my?tab=all&range=6m&keyword=&page=1 — 我的訂單
@@ -74,5 +76,19 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                 _ => BadRequest(new { message = result.Message })
             };
         }
+
+        // POST /api/MarketOrder/{orderId}/confirm-receipt — 買家確認收貨
+        [HttpPost("{orderId:long}/confirm-receipt")]
+        public async Task<IActionResult> ConfirmReceipt(long orderId)
+        {
+            var result = await _fulfillment.ConfirmReceiptAsync(User.GetUserId(), orderId);
+            return result.Outcome switch
+            {
+                OrderActionOutcome.Success => Ok(new { message = result.Message }),
+                OrderActionOutcome.NotFound => NotFound(new { message = result.Message }),
+                _ => BadRequest(new { message = result.Message })
+            };
+        }
     }
+
 }
