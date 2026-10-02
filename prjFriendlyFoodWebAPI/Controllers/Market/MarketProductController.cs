@@ -20,6 +20,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         private readonly ISellerIdentityService _sellerIdentity;
 
         private const int MaxImageCount = 5;
+        private const int PublicPageSize = 12;   // 商城商品列表一頁幾筆（前端 pageSize 要一致）
 
         // 注入 IWebHostEnvironment 才能拿到 wwwroot 的實際路徑
         public MarketProductController(
@@ -226,8 +227,8 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
             // 分頁 + mapping 到 DTO
             var totalCount = await query.CountAsync();
             var items = await query
-                .Skip((dto.Page - 1) * 10)
-                .Take(10)
+                .Skip((Math.Max(dto.Page, 1) - 1) * PublicPageSize)
+                .Take(PublicPageSize)
                 .Select(p => new MarketPublicProductListDto
                 {
                     ProductId = p.FProductId,
