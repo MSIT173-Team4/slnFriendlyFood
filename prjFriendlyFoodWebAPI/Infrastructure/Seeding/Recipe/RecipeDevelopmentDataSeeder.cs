@@ -1,38 +1,34 @@
 using Microsoft.EntityFrameworkCore;
 using prjFriendlyFoodWebAPI.Models;
-using prjFriendlyFoodWebAPI.Services.Member;
 
 namespace prjFriendlyFoodWebAPI.Infrastructure.Seeding.Recipe;
 
 public sealed class RecipeDevelopmentDataSeeder(
     FriendlyFoodDbContext context,
-    ILogger<RecipeDevelopmentDataSeeder> logger,
-    EncodeServices passwordEncoder) : IRecipeDataSeeder
+    ILogger<RecipeDevelopmentDataSeeder> logger) : IRecipeDataSeeder
 {
-    private const string DemoPassword = "DemoOnly2026!";
-
     public async Task SeedAsync(CancellationToken cancellationToken = default)
     {
         await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
 
         try
         {
-            var users = await EnsureUsersAsync(cancellationToken);
+            var recipeOwner = await GetRecipeOwnerAsync(cancellationToken);
             var categories = await EnsureCategoriesAsync(cancellationToken);
             var ingredients = await EnsureIngredientsAsync(cancellationToken);
             var tags = await EnsureTagsAsync(cancellationToken);
 
             await EnsureRecipesAsync(
-                users,
+                recipeOwner,
                 categories,
                 ingredients,
                 tags,
                 cancellationToken);
             await EnsurePantryAsync(
-                users[RecipeSeedDefinitions.DemoTesterUsername],
+                recipeOwner,
                 ingredients,
                 cancellationToken);
-            await EnsureEngagementAsync(users, cancellationToken);
+            await EnsureEngagementAsync(cancellationToken);
 
             await context.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
@@ -45,34 +41,25 @@ public sealed class RecipeDevelopmentDataSeeder(
         }
     }
 
-    private async Task<Dictionary<string, TUser>> EnsureUsersAsync(
+    private async Task<TUser> GetRecipeOwnerAsync(
         CancellationToken cancellationToken)
     {
-        var usernames = RecipeSeedDefinitions.Users.Select(user => user.Username).ToArray();
-        var existingUsers = await context.TUsers
-            .Where(user => usernames.Contains(user.FUsername))
-            .ToListAsync(cancellationToken);
-        var users = existingUsers.ToDictionary(user => user.FUsername);
-
-        foreach (var definition in RecipeSeedDefinitions.Users)
+        var recipeOwner = await context.TUsers.SingleOrDefaultAsync(
+            user => user.FUsername == RecipeSeedDefinitions.DemoOwnerUsername,
+            cancellationToken);
+        if (recipeOwner is null)
         {
-            if (!users.TryGetValue(definition.Username, out var user))
-            {
-                var encodedPassword = await passwordEncoder.HashPassword(DemoPassword);
-                user = CreateUser(definition, encodedPassword);
-                users[definition.Username] = user;
-                context.TUsers.Add(user);
-            }
-            else if (user.FPassword == DemoPassword)
-            {
-                user.FPassword = await passwordEncoder.HashPassword(DemoPassword);
-            }
-
-            user.FIsActive = definition.IsActive;
+            throw new InvalidOperationException(
+                $"Recipe 種子資料需要會員模組先建立帳號「{RecipeSeedDefinitions.DemoOwnerUsername}」。");
         }
 
-        await context.SaveChangesAsync(cancellationToken);
-        return users;
+        if (!recipeOwner.FIsActive)
+        {
+            throw new InvalidOperationException(
+                $"會員帳號「{RecipeSeedDefinitions.DemoOwnerUsername}」必須是啟用狀態，Recipe 整合測試才能登入。");
+        }
+
+        return recipeOwner;
     }
 
     private async Task<Dictionary<string, TRecipeCategory>> EnsureCategoriesAsync(
@@ -164,7 +151,7 @@ public sealed class RecipeDevelopmentDataSeeder(
     }
 
     private async Task EnsureRecipesAsync(
-        IReadOnlyDictionary<string, TUser> users,
+        TUser recipeOwner,
         IReadOnlyDictionary<string, TRecipeCategory> categories,
         IReadOnlyDictionary<string, TIngredient> ingredients,
         IReadOnlyDictionary<string, TRecipeTag> tags,
@@ -172,44 +159,42 @@ public sealed class RecipeDevelopmentDataSeeder(
     {
         foreach (var definition in RecipeSeedDefinitions.Recipes)
         {
-            var recipe = await context.TRecipes
-                .FirstOrDefaultAsync(item => item.FTitle == definition.Title, cancellationToken);
-
-            if (recipe is null)
+            var recipesWithSameTitle = await context.TRecipes
+                .Where(item => item.FTitle == definition.Title)
+                .OrderBy(item => item.FRecipeId)
+                .Take(2)
+                .ToListAsync(cancellationToken);
+            if (recipesWithSameTitle.Count > 1)
             {
-                recipe = new TRecipe
-                {
-                    FTitle = definition.Title,
-                    FCreatedAt = DateTime.UtcNow
-                };
-                context.TRecipes.Add(recipe);
+                throw new InvalidOperationException(
+                    $"食譜「{definition.Title}」有重複資料，請先在整合資料庫保留唯一一筆後再執行 Recipe Seeder。");
             }
 
-            recipe.FUserId = users[definition.AuthorUsername].FId;
-            recipe.FCategoryId = categories[definition.Category].FCategoryId;
-            recipe.FDescription = definition.Description;
-            recipe.FCoverImageUrl = definition.CoverImageUrl;
-            recipe.FYtVideoId = definition.YouTubeVideoId;
-            recipe.FAiPrepTips = $"資料來源：{definition.SourceName}｜{definition.SourceUrl}。{definition.SafetyNote}";
-            recipe.FIsAiGenerated = definition.IsAiGenerated;
-            recipe.FDefaultServings = definition.Servings;
-            recipe.FCookingMinutes = definition.CookingMinutes;
-            recipe.FTotalCalories = definition.Calories;
-            recipe.FViews = Math.Max(recipe.FViews, definition.SeedViewCount);
-            recipe.FStatus = 1;
-            recipe.FCreatedAt = DateTime.UtcNow.AddDays(-definition.PublishedDaysAgo);
-            recipe.FUpdatedAt = DateTime.UtcNow;
-            await context.SaveChangesAsync(cancellationToken);
+            if (recipesWithSameTitle.Count == 1)
+            {
+                continue;
+            }
 
-            await context.TRecipeIngredients
-                .Where(item => item.FRecipeId == recipe.FRecipeId)
-                .ExecuteDeleteAsync(cancellationToken);
-            await context.TRecipeSteps
-                .Where(item => item.FRecipeId == recipe.FRecipeId)
-                .ExecuteDeleteAsync(cancellationToken);
-            await context.TRecipeTagMappings
-                .Where(item => item.FRecipeId == recipe.FRecipeId)
-                .ExecuteDeleteAsync(cancellationToken);
+            var recipe = new TRecipe
+            {
+                FUserId = recipeOwner.FId,
+                FCategoryId = categories[definition.Category].FCategoryId,
+                FTitle = definition.Title,
+                FDescription = definition.Description,
+                FCoverImageUrl = definition.CoverImageUrl,
+                FYtVideoId = definition.YouTubeVideoId,
+                FAiPrepTips = $"資料來源：{definition.SourceName}｜{definition.SourceUrl}。{definition.SafetyNote}",
+                FIsAiGenerated = definition.IsAiGenerated,
+                FDefaultServings = definition.Servings,
+                FCookingMinutes = definition.CookingMinutes,
+                FTotalCalories = definition.Calories,
+                FViews = definition.SeedViewCount,
+                FStatus = 1,
+                FCreatedAt = DateTime.UtcNow.AddDays(-definition.PublishedDaysAgo),
+                FUpdatedAt = DateTime.UtcNow
+            };
+            context.TRecipes.Add(recipe);
+            await context.SaveChangesAsync(cancellationToken);
 
             context.TRecipeIngredients.AddRange(definition.Ingredients.Select((item, index) =>
                 new TRecipeIngredient
@@ -284,9 +269,7 @@ public sealed class RecipeDevelopmentDataSeeder(
         }
     }
 
-    private async Task EnsureEngagementAsync(
-        IReadOnlyDictionary<string, TUser> users,
-        CancellationToken cancellationToken)
+    private async Task EnsureEngagementAsync(CancellationToken cancellationToken)
     {
         var recipeTitles = RecipeSeedDefinitions.Recipes.Select(seed => seed.Title).ToArray();
         var recipes = await context.TRecipes
@@ -294,8 +277,10 @@ public sealed class RecipeDevelopmentDataSeeder(
             .ToListAsync(cancellationToken);
         var recipesByTitle = recipes.ToDictionary(recipe => recipe.FTitle);
         var recipeIds = recipes.Select(recipe => recipe.FRecipeId).ToArray();
-        var engagementUsers = users.Values
-            .Where(user => user.FUsername != RecipeSeedDefinitions.DemoOwnerUsername)
+        var engagementUsers = (await context.TUsers
+                .AsNoTracking()
+                .Where(user => user.FIsActive)
+                .ToListAsync(cancellationToken))
             .OrderBy(user => user.FUsername)
             .ToArray();
         var existingLikeKeys = (await context.TRecipeLikes
@@ -363,22 +348,4 @@ public sealed class RecipeDevelopmentDataSeeder(
         }
     }
 
-    private static TUser CreateUser(
-        RecipeUserSeedDefinition definition,
-        string encodedPassword)
-    {
-        return new TUser
-        {
-            FUsername = definition.Username,
-            FPassword = encodedPassword,
-            FEmail = definition.Email,
-            FPhone = "0900000000",
-            FIdNum = definition.IdNumber,
-            FAddress = "Taipei",
-            FImage = string.Empty,
-            FIsActive = definition.IsActive,
-            FIsAdmin = false,
-            FCreateTime = DateTime.UtcNow
-        };
-    }
 }
