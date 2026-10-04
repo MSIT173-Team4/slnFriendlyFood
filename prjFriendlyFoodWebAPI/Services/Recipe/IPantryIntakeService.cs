@@ -7,6 +7,7 @@ namespace prjFriendlyFoodWebAPI.Services.Recipe;
 public interface IPantryIntakeService
 {
     Task<ServiceResult<PantryItemDto>> AddItemAsync(
+        int userId,
         AddPantryItemRequestDto request,
         CancellationToken cancellationToken);
 }

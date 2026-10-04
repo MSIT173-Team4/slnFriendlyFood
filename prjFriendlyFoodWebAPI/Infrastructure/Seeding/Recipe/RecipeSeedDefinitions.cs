@@ -2,7 +2,6 @@ namespace prjFriendlyFoodWebAPI.Infrastructure.Seeding.Recipe;
 
 internal sealed record RecipeSeedDefinition(
     string Title,
-    string AuthorUsername,
     string Category,
     string Description,
     string CoverImageUrl,
@@ -31,20 +30,9 @@ internal sealed record IngredientSeedDefinition(
 
 internal sealed record StepSeedDefinition(string Instruction, int TimerSeconds);
 
-internal sealed record RecipeUserSeedDefinition(
-    string Username,
-    string Email,
-    string IdNumber,
-    bool IsActive);
-
 internal static class RecipeSeedDefinitions
 {
     public const string DemoOwnerUsername = "recipe.demo";
-    public const string DemoTesterUsername = "recipe.tester";
-    public const string HomeCookUsername = "小滿家常菜";
-    public const string FitnessCookUsername = "健身便當日記";
-    public const string FamilyCookUsername = "樂樂親子餐桌";
-    public const string PetCookUsername = "毛孩鮮食筆記";
 
     private const string NutritionGovUrl = "https://www.nutrition.gov/recipes";
     private const string JapaneseFreezerRecipeUrl = "https://www.kikkoman.co.jp/homecook/theme/popular/shitaaji.html";
@@ -70,18 +58,20 @@ internal static class RecipeSeedDefinitions
             ["柴魚涼拌洋蔥絲"] = "15-bonito-onion-salad.jpg",
             ["冬瓜蛤蜊清湯"] = "16-winter-melon-clam-soup.jpg",
             ["古早味醬香滷豆腐"] = "17-braised-tofu.jpg",
-            ["寶寶彩蔬軟飯小餐盤"] = "18-baby-vegetable-soft-rice.jpg"
+            ["寶寶彩蔬軟飯小餐盤"] = "18-baby-vegetable-soft-rice.jpg",
+            ["下味冷凍味噌豬肉菇菇燒"] = "19-freezer-miso-pork-mushrooms.jpg",
+            ["下味冷凍薑汁燒肉"] = "20-freezer-ginger-pork.jpg",
+            ["下味冷凍照燒雞腿"] = "21-freezer-teriyaki-chicken.jpg",
+            ["下味冷凍芝麻醬油雞胸"] = "22-freezer-sesame-soy-chicken-breast.jpg",
+            ["下味冷凍日式燒肉牛肉"] = "23-freezer-yakiniku-beef.jpg",
+            ["下味冷凍甘辛肉燥"] = "24-freezer-sweet-savory-pork-soboro.jpg",
+            ["冷凍備料豚汁味噌鍋"] = "25-freezer-tonjiru-miso-pot.jpg",
+            ["冷凍烏龍蔬菜炒麵包"] = "26-freezer-yaki-udon.jpg",
+            ["冷凍鮭魚味噌燒"] = "27-freezer-miso-salmon.jpg",
+            ["冷凍白菜雞肉奶油煮"] = "28-freezer-creamy-chicken-napa-cabbage.jpg",
+            ["冷凍番茄鯖魚咖哩"] = "29-freezer-tomato-mackerel-curry.jpg",
+            ["冷凍飯糰鮭魚茶泡飯"] = "30-freezer-salmon-onigiri-ochazuke.jpg"
         };
-
-    public static readonly IReadOnlyCollection<RecipeUserSeedDefinition> Users =
-    [
-        new(DemoOwnerUsername, "recipe.demo@friendlyfood.local", "A123456789", true),
-        new(DemoTesterUsername, "recipe.tester@friendlyfood.local", "B123456789", true),
-        new(HomeCookUsername, "homecook.author@friendlyfood.local", "C123456789", false),
-        new(FitnessCookUsername, "fitness.author@friendlyfood.local", "D123456789", false),
-        new(FamilyCookUsername, "family.author@friendlyfood.local", "E123456789", false),
-        new(PetCookUsername, "pet.author@friendlyfood.local", "F123456789", false)
-    ];
 
     public static readonly IReadOnlyCollection<(string Name, short Order)> Categories =
     [
@@ -211,7 +201,6 @@ internal static class RecipeSeedDefinitions
             ["台式家常", "平底鍋", "零剩食"],
             [("油麵", "300 公克", 300, "g"), ("豬里肌肉絲", "120 公克", 120, "g"), ("高麗菜", "150 公克", 150, "g"), ("紅蘿蔔", "半根", 0.5m, "根")],
             [("高麗菜切絲，紅蘿蔔切細條，肉絲以少量醬油抓勻。", 420), ("熱鍋後炒熟肉絲，先盛出備用。", 300), ("原鍋炒軟紅蘿蔔與高麗菜。", 300), ("加入油麵與少量水，蓋鍋燜至麵體鬆開。", 240), ("放回肉絲並加入醬油拌炒均勻。", 180), ("確認肉絲熟透、湯汁收乾後盛盤。", 120)],
-            authorUsername: HomeCookUsername,
             youtubeVideoId: "xnvJGP0BDr8",
             seedViewCount: 930,
             seedLikeCount: 4,
@@ -224,7 +213,6 @@ internal static class RecipeSeedDefinitions
             ["一鍋到底", "新手友善", "零剩食"],
             [("豬梅花肉", "300 公克", 300, "g"), ("馬鈴薯", "2 顆", 2, "顆"), ("紅蘿蔔", "1 根", 1, "根"), ("洋蔥", "1 顆", 1, "顆"), ("咖哩塊", "4 小塊", 80, "g")],
             [("豬肉切塊，馬鈴薯與紅蘿蔔滾刀切，洋蔥切片。", 600), ("鍋中少油煎香豬肉表面。", 360), ("加入洋蔥炒至透明，再放入根莖蔬菜。", 360), ("加水蓋過食材，煮滾後轉小火。", 300), ("燉至蔬菜柔軟後關小火，放入咖哩塊攪拌融化。", 1200), ("重新小火煮至濃稠，確認豬肉熟透後完成。", 300)],
-            authorUsername: HomeCookUsername,
             youtubeVideoId: "hT1pCR45bWU",
             seedViewCount: 760,
             seedLikeCount: 3,
@@ -237,7 +225,6 @@ internal static class RecipeSeedDefinitions
             ["十五分鐘", "新手友善", "零剩食"],
             [("洋蔥", "1 顆", 1, "顆"), ("柴魚片", "5 公克", 5, "g"), ("薄鹽醬油", "1 大匙", 15, "ml"), ("白醋", "1 小匙", 5, "ml")],
             [("洋蔥逆紋切成均勻細絲。", 180), ("放入冰水輕抓後浸泡，降低辛辣感。", 300), ("瀝乾洋蔥並以廚房紙巾吸除多餘水分。", 120), ("醬油與白醋混合成醬汁。", 60), ("洋蔥裝盤，淋醬後撒上柴魚片。", 60)],
-            authorUsername: HomeCookUsername,
             youtubeVideoId: "ebW1XCD7bYQ",
             seedViewCount: 260,
             seedLikeCount: 2,
@@ -250,7 +237,6 @@ internal static class RecipeSeedDefinitions
             ["台式家常", "一鍋到底", "新手友善"],
             [("冬瓜", "500 公克", 500, "g"), ("蛤蜊", "300 公克", 300, "g"), ("薑", "3 片", 15, "g"), ("青蔥", "1 根", 1, "根")],
             [("蛤蜊吐沙後刷洗外殼，冬瓜去皮去籽切塊。", 900), ("鍋中加水、薑片與冬瓜煮滾。", 300), ("轉中小火煮至冬瓜邊緣透明。", 600), ("放入蛤蜊並蓋鍋煮至開殼。", 240), ("撈除未開殼蛤蜊，撒上蔥花後完成。", 120)],
-            authorUsername: HomeCookUsername,
             youtubeVideoId: "FwsfSbGOcuQ",
             seedViewCount: 1040,
             seedLikeCount: 4,
@@ -263,7 +249,6 @@ internal static class RecipeSeedDefinitions
             ["台式家常", "一鍋到底", "新手友善"],
             [("板豆腐", "2 盒", 800, "g"), ("薄鹽醬油", "3 大匙", 45, "ml"), ("薑", "4 片", 20, "g"), ("青蔥", "2 根", 2, "根")],
             [("豆腐以紙巾吸乾水分，切成厚片。", 300), ("平底鍋加少量油，將豆腐兩面煎至金黃。", 600), ("加入薑片與蔥白炒香。", 120), ("倒入醬油與清水至豆腐一半高度。", 120), ("小火滷煮並中途翻面，使兩面均勻入味。", 900), ("湯汁略收後撒上蔥綠即可。", 180)],
-            authorUsername: HomeCookUsername,
             youtubeVideoId: "BWrMXB31YH8",
             seedViewCount: 580,
             seedLikeCount: 3,
@@ -276,7 +261,6 @@ internal static class RecipeSeedDefinitions
             ["寶寶副食品", "無加鹽", "一鍋到底"],
             [("白飯", "100 公克", 100, "g"), ("雞胸肉", "40 公克", 40, "g"), ("紅蘿蔔", "20 公克", 20, "g"), ("青花椰菜", "20 公克", 20, "g"), ("飲用水", "200 毫升", 200, "ml")],
             [("雞肉去筋切碎，蔬菜洗淨後切成適合月齡的小丁。", 420), ("鍋中加入白飯與水，以小火煮開。", 300), ("加入雞肉碎並充分攪散。", 300), ("加入紅蘿蔔與青花椰菜，持續小火燉煮。", 600), ("確認雞肉熟透、蔬菜柔軟後關火。", 180), ("依寶寶發展壓碎或剪細，放涼至適口溫度再餵食。", 180)],
-            authorUsername: FamilyCookUsername,
             youtubeVideoId: "YYHm-m-EwJ4",
             seedViewCount: 420,
             seedLikeCount: 3,
@@ -313,7 +297,6 @@ internal static class RecipeSeedDefinitions
             ["日式料理", "冷凍備料", "健身餐", "高蛋白"],
             [("雞胸肉", "300 公克", 300, "g"), ("白芝麻", "1 大匙", 10, "g"), ("薄鹽醬油", "1.5 大匙", 22.5m, "ml"), ("芝麻油", "1 小匙", 5, "ml")],
             [("雞胸肉切成等厚片，所有調味料在冷凍袋內混合。", 300), ("加入雞胸抓勻、排氣壓平後冷凍。", 180), ("冷藏解凍後以中小火煎至中心熟透。", 720)],
-            authorUsername: FitnessCookUsername,
             seedViewCount: 1210, seedLikeCount: 4, seedFavoriteCount: 4, publishedDaysAgo: 6),
         Create(
             "下味冷凍日式燒肉牛肉", "異國料理",
@@ -330,7 +313,6 @@ internal static class RecipeSeedDefinitions
             ["日式料理", "冷凍備料", "十五分鐘", "一鍋到底"],
             [("豬絞肉", "400 公克", 400, "g"), ("洋蔥", "1 顆", 1, "顆"), ("薄鹽醬油", "3 大匙", 45, "ml"), ("味醂", "2 大匙", 30, "ml")],
             [("洋蔥切末，與絞肉及調味料裝入冷凍袋。", 300), ("隔袋揉散絞肉，薄薄壓平並畫分隔線後冷凍。", 180), ("冷藏解凍後倒入鍋中炒散，煮至肉末全熟。", 600)],
-            authorUsername: HomeCookUsername,
             seedViewCount: 1170, seedLikeCount: 3, seedFavoriteCount: 3, publishedDaysAgo: 7),
         Create(
             "冷凍備料豚汁味噌鍋", "異國料理",
@@ -379,7 +361,6 @@ internal static class RecipeSeedDefinitions
             ["日式料理", "冷凍備料", "十五分鐘", "零剩食"],
             [("白飯", "300 公克", 300, "g"), ("熟鮭魚", "80 公克", 80, "g"), ("海苔", "2 片", 2, "片"), ("青蔥", "1 根", 1, "根")],
             [("白飯拌入剝碎熟鮭魚，趁溫熱捏成兩顆飯糰。", 300), ("個別包緊、快速降溫後裝袋冷凍。", 180), ("飯糰加熱至中心冒熱氣，放入碗中沖入熱高湯並撒海苔。", 240)],
-            authorUsername: HomeCookUsername,
             seedViewCount: 1260, seedLikeCount: 4, seedFavoriteCount: 3, publishedDaysAgo: 3)
     ];
 
@@ -397,7 +378,6 @@ internal static class RecipeSeedDefinitions
         IReadOnlyCollection<string> tags,
         IReadOnlyCollection<(string Name, string Display, decimal? Amount, string? Unit)> ingredients,
         IReadOnlyCollection<(string Instruction, int TimerSeconds)> steps,
-        string? authorUsername = null,
         string? youtubeVideoId = null,
         string? coverImageFileName = null,
         int? seedViewCount = null,
@@ -406,14 +386,6 @@ internal static class RecipeSeedDefinitions
         int? publishedDaysAgo = null)
     {
         var imageCode = Math.Abs(title.Aggregate(17, (hash, character) => hash * 31 + character)) % 1000;
-        var resolvedAuthorUsername = authorUsername ?? category switch
-        {
-            "家常菜" => HomeCookUsername,
-            "健康輕食" => FitnessCookUsername,
-            "特殊照護" => FamilyCookUsername,
-            "寵物料理" => PetCookUsername,
-            _ => DemoOwnerUsername
-        };
         var resolvedCoverImageFileName = coverImageFileName;
         if (resolvedCoverImageFileName is null)
         {
@@ -421,12 +393,11 @@ internal static class RecipeSeedDefinitions
         }
 
         var coverImageUrl = resolvedCoverImageFileName is null
-            ? $"https://placehold.co/1200x800/f1ded5/5b382c?text=FriendlyFood+{imageCode}"
+            ? "/images/recipes/recipe-cover-fallback.svg"
             : $"/images/recipes/{resolvedCoverImageFileName}";
 
         return new RecipeSeedDefinition(
             title,
-            resolvedAuthorUsername,
             category,
             description,
             coverImageUrl,

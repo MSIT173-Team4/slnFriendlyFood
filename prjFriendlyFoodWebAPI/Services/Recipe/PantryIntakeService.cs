@@ -19,6 +19,7 @@ public sealed class PantryIntakeService(
         ];
 
     public async Task<ServiceResult<PantryItemDto>> AddItemAsync(
+        int userId,
         AddPantryItemRequestDto request,
         CancellationToken cancellationToken)
     {
@@ -28,7 +29,7 @@ public sealed class PantryIntakeService(
             return ServiceResult<PantryItemDto>.Validation("入庫資料不完整。", [.. validationErrors]);
         }
 
-        if (!await context.TUsers.AnyAsync(user => user.FId == request.UserId, cancellationToken))
+        if (!await context.TUsers.AnyAsync(user => user.FId == userId, cancellationToken))
         {
             return ServiceResult<PantryItemDto>.NotFound("找不到指定的會員。");
         }
@@ -50,7 +51,7 @@ public sealed class PantryIntakeService(
 
             var pantryItem = new TRecipeUserPantry
             {
-                FUserId = request.UserId,
+                FUserId = userId,
                 FIngredientId = ingredient.FId,
                 FAmount = request.Amount,
                 FUnit = request.Unit.Trim(),
@@ -90,11 +91,6 @@ public sealed class PantryIntakeService(
     private static List<string> Validate(AddPantryItemRequestDto request)
     {
         var errors = new List<string>();
-        if (request.UserId <= 0)
-        {
-            errors.Add("會員 ID 必須大於零。");
-        }
-
         if (string.IsNullOrWhiteSpace(request.IngredientName) || request.IngredientName.Trim().Length > 50)
         {
             errors.Add("食材名稱為必填，且不可超過 50 個字元。");

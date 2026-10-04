@@ -1,7 +1,6 @@
 namespace prjFriendlyFoodWebAPI.DTOs.Recipe.Requests;
 
 public sealed record AddPantryItemRequestDto(
-    int UserId,
     string IngredientName,
     decimal Amount,
     string Unit,

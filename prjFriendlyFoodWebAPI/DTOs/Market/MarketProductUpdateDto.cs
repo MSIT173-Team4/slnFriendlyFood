@@ -20,5 +20,6 @@
         /// <summary>最終排序（保留的舊圖 id，依新順序排列）</summary>
         public List<int>? ImageOrder { get; set; }
         public byte? ProductStatus { get; set; }
+        public int? IngredientId { get; set; }//串接食譜用
     }
 }

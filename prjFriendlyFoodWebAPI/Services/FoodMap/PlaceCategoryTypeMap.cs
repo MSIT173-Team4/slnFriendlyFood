@@ -23,6 +23,19 @@ namespace prjFriendlyFoodWebAPI.Services.FoodMap
             [4] = "convenience_store"
         };
 
+        // 生鮮類店家的 Google 類型：這些店買的東西不耐放，行程順序要排在最後。
+        // 要調整哪些算生鮮，只改這份清單。
+        private static readonly HashSet<string> FreshPlaceTypes = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "butcher_shop",
+            "market",
+            "seafood_market",
+            "fish_store"
+        };
+
+        public static bool IsFreshType(string? googlePlaceType) =>
+            !string.IsNullOrWhiteSpace(googlePlaceType) && FreshPlaceTypes.Contains(googlePlaceType.Trim());
+
         [GeneratedRegex("^[a-z_]+$")]
         private static partial Regex GooglePlaceTypePattern();
 

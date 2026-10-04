@@ -1,12 +1,14 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using prjFriendlyFoodWebAPI.DTOs.Recipe;
-using prjFriendlyFoodWebAPI.DTOs.Recipe.Requests;
 using prjFriendlyFoodWebAPI.DTOs.Recipe.Responses;
+using prjFriendlyFoodWebAPI.Extensions;
 using prjFriendlyFoodWebAPI.Services.Recipe;
 
 namespace prjFriendlyFoodWebAPI.Controllers.Recipe;
 
 [Route("api/recipe/{recipeId:int}")]
+[Authorize]
 public sealed class RecipeEngagementController(
     IRecipeEngagementService engagementService) : BaseController
 {
@@ -22,12 +24,11 @@ public sealed class RecipeEngagementController(
     [HttpPost("like")]
     public async Task<ActionResult<ApiResponse<RecipeEngagementDto>>> ToggleLike(
         int recipeId,
-        [FromBody] UserRecipeActionRequestDto request,
         CancellationToken cancellationToken)
     {
         var result = await engagementService.ToggleLikeAsync(
             recipeId,
-            request.UserId,
+            User.GetUserId(),
             cancellationToken);
         return FromServiceResult(result);
     }
@@ -35,12 +36,11 @@ public sealed class RecipeEngagementController(
     [HttpPost("favorite")]
     public async Task<ActionResult<ApiResponse<RecipeEngagementDto>>> ToggleFavorite(
         int recipeId,
-        [FromBody] UserRecipeActionRequestDto request,
         CancellationToken cancellationToken)
     {
         var result = await engagementService.ToggleFavoriteAsync(
             recipeId,
-            request.UserId,
+            User.GetUserId(),
             cancellationToken);
         return FromServiceResult(result);
     }
