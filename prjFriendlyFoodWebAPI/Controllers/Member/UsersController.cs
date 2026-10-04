@@ -525,5 +525,26 @@ namespace prjFriendlyFoodWebAPI.Controllers.Member
 
             return Ok(result);
         }
+        [Authorize]
+        [HttpGet("GetPost")]
+        public async Task<IActionResult> GetPost()
+        {
+            int userId = int.Parse(
+                User.FindFirst(ClaimTypes.NameIdentifier)!.Value
+            );
+
+            var result = await _us.GetPost(userId);
+
+            return Ok(result);
+        }
+        [Authorize]
+        [HttpGet("GetUserPost/{id}")]
+        public async Task<IActionResult> GetUserPost(int id)
+        {
+
+            var result = await _us.GetPost(id);
+
+            return Ok(result);
+        }
     }
 }

@@ -206,6 +206,27 @@ namespace prjFriendlyFoodWebAPI.Services.Member
             };
             return result;
         }
+        public async Task<UserPostStatDTO> GetPost(int id)
+        {
+            var posts = await _db.TPostTables
+                .Where(p => p.FUserId == id)
+                .Select(p => new UserPostDTO
+                {
+                    PostId = p.FPostId,
+                    Title = p.FTitle,
+                    Likes = p.FLikes,
+                    Views = p.FViews,
+                    PostDate = p.FPostDate
+                })
+                .ToListAsync();
+
+            return new UserPostStatDTO
+            {
+                Posts = posts,
+                TotalLikes = posts.Sum(p => p.Likes),
+                TotalViews = posts.Sum(p => p.Views)
+            };
+        }
     }
 }
 
