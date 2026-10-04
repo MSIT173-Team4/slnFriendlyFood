@@ -101,7 +101,7 @@ namespace prjFriendlyFoodWebAPI.Services.FoodMap
                 currentLng = bestPlace.Longitude;
             }
 
-            // ---------------- 第二階段：依總移動距離排序 ----------------
+            // ---------------- 第二階段：最短路程排序（生鮮類店家排最後） ----------------
             var orderedPlaces = OrderPlacesByDistance(
                 selectedPlaces, candidatePlaces, originLatitude, originLongitude);
 
@@ -121,7 +121,14 @@ namespace prjFriendlyFoodWebAPI.Services.FoodMap
             };
         }
 
-        private List<PlaceCoverageDTO> OrderPlacesByDistance(
+        // 8 間店以內用窮舉找最短順序（8! = 40320，計算量可接受）
+        private const int MaxExhaustivePlaces = 8;
+
+        // 排出造訪順序：
+        //   1. 生鮮類店家（肉舖、傳統市場…）一律排在一般店家之後，生鮮食材才不會跟著跑完整趟
+        //   2. 在這個前提下，從起點出發的總移動距離最短
+        // 距離用直線距離估算，不消耗 Google API 額度；實際行車路線在確認儲存時才計算。
+        private static List<PlaceCoverageDTO> OrderPlacesByDistance(
             List<PlaceCoverageDTO> selectedPlaces,
             List<PlaceCandidateWithLocationDto> allCandidates,
             decimal originLatitude,
@@ -135,35 +142,102 @@ namespace prjFriendlyFoodWebAPI.Services.FoodMap
             var locationById = allCandidates.ToDictionary(c => c.FPlaceId);
             var origin = ((double)originLatitude, (double)originLongitude);
 
-            // 8 間店以內：窮舉所有排列（8! = 40320，計算量可接受）
-            if (selectedPlaces.Count <= 8)
+            var regularPlaces = selectedPlaces.Where(p => !locationById[p.FPlaceId].IsFresh).ToList();
+            var freshPlaces = selectedPlaces.Where(p => locationById[p.FPlaceId].IsFresh).ToList();
+
+            if (selectedPlaces.Count <= MaxExhaustivePlaces)
             {
-                return FindShortestPermutation(selectedPlaces, locationById, origin);
+                return FindShortestGroupedOrder(regularPlaces, freshPlaces, locationById, origin);
             }
 
-            // 超過 8 間店：改用最近鄰法，避免排列數量爆炸
-            return NearestNeighborOrder(selectedPlaces, locationById, origin);
+            // 超過 8 間店：兩組各自用最近鄰法排出初始順序，再用 2-opt 消除繞路
+            var orderedRegular = ImproveWithTwoOpt(
+                NearestNeighborOrder(regularPlaces, locationById, origin), locationById, origin);
+
+            var freshStart = origin;
+            if (orderedRegular.Count > 0)
+            {
+                var last = locationById[orderedRegular[^1].FPlaceId];
+                freshStart = (last.Latitude, last.Longitude);
+            }
+
+            var orderedFresh = ImproveWithTwoOpt(
+                NearestNeighborOrder(freshPlaces, locationById, freshStart), locationById, freshStart);
+
+            orderedRegular.AddRange(orderedFresh);
+            return orderedRegular;
         }
 
-        private static List<PlaceCoverageDTO> FindShortestPermutation(
-            List<PlaceCoverageDTO> places,
+        // 窮舉「一般店家的所有排列 × 生鮮店家的所有排列」，取整趟距離最短的組合
+        private static List<PlaceCoverageDTO> FindShortestGroupedOrder(
+            List<PlaceCoverageDTO> regularPlaces,
+            List<PlaceCoverageDTO> freshPlaces,
             Dictionary<int, PlaceCandidateWithLocationDto> locationById,
             (double Lat, double Lng) origin)
         {
+            var freshPermutations = GetPermutations(freshPlaces).ToList();
+
             List<PlaceCoverageDTO>? bestOrder = null;
             var bestDistance = double.MaxValue;
 
-            foreach (var permutation in GetPermutations(places))
+            foreach (var regularOrder in GetPermutations(regularPlaces))
             {
-                var totalDistance = CalculateTotalDistance(permutation, locationById, origin);
-                if (totalDistance < bestDistance)
+                foreach (var freshOrder in freshPermutations)
                 {
-                    bestDistance = totalDistance;
-                    bestOrder = permutation;
+                    var combined = new List<PlaceCoverageDTO>(regularOrder.Count + freshOrder.Count);
+                    combined.AddRange(regularOrder);
+                    combined.AddRange(freshOrder);
+
+                    var totalDistance = CalculateTotalDistance(combined, locationById, origin);
+                    if (totalDistance < bestDistance)
+                    {
+                        bestDistance = totalDistance;
+                        bestOrder = combined;
+                    }
                 }
             }
 
-            return bestOrder ?? places;
+            return bestOrder ?? regularPlaces.Concat(freshPlaces).ToList();
+        }
+
+        // 2-opt：反轉路線中的一段，如果總距離變短就採用，直到沒有更短的為止
+        private static List<PlaceCoverageDTO> ImproveWithTwoOpt(
+            List<PlaceCoverageDTO> route,
+            Dictionary<int, PlaceCandidateWithLocationDto> locationById,
+            (double Lat, double Lng) start)
+        {
+            if (route.Count < 3)
+            {
+                return route;
+            }
+
+            var best = new List<PlaceCoverageDTO>(route);
+            var bestDistance = CalculateTotalDistance(best, locationById, start);
+            var improved = true;
+
+            while (improved)
+            {
+                improved = false;
+
+                for (var i = 0; i < best.Count - 1; i++)
+                {
+                    for (var j = i + 1; j < best.Count; j++)
+                    {
+                        var candidate = new List<PlaceCoverageDTO>(best);
+                        candidate.Reverse(i, j - i + 1);
+
+                        var distance = CalculateTotalDistance(candidate, locationById, start);
+                        if (distance < bestDistance - 0.5)
+                        {
+                            best = candidate;
+                            bestDistance = distance;
+                            improved = true;
+                        }
+                    }
+                }
+            }
+
+            return best;
         }
 
         // 遞迴產生所有排列組合

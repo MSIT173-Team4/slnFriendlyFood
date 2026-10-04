@@ -175,7 +175,8 @@ namespace prjFriendlyFoodWebAPI.Services.FoodMap
                     FName = r.Place.DisplayName?.Text ?? string.Empty,
                     FPlaceCategoryId = r.PlaceCategoryId,
                     Latitude = r.Place.Location!.Latitude,
-                    Longitude = r.Place.Location!.Longitude
+                    Longitude = r.Place.Location!.Longitude,
+                    IsFresh = PlaceCategoryTypeMap.IsFreshType(typeMap.GetValueOrDefault(r.PlaceCategoryId))
                 })
                 .ToList();
 
@@ -210,6 +211,7 @@ namespace prjFriendlyFoodWebAPI.Services.FoodMap
                         FPlaceCategoryId = r.PlaceCategoryId,
                         FGoogleRating = r.Place.Rating.HasValue ? Math.Round((decimal)r.Place.Rating.Value, 1) : null,
                         IsRecommend = recommendedPlaceIds.Contains(r.PlaceId),
+                        IsFresh = PlaceCategoryTypeMap.IsFreshType(typeMap.GetValueOrDefault(r.PlaceCategoryId)),
                         IsSuggested = hasOrder,
                         SuggestedOrder = hasOrder ? order : null,
                         MatchedItemIds = matchedItems.Select(i => i.FShoppingListItemId).ToList(),
@@ -219,7 +221,11 @@ namespace prjFriendlyFoodWebAPI.Services.FoodMap
                             r.Place.Location!.Latitude, r.Place.Location!.Longitude))
                     };
                 })
-                .OrderBy(c => c.SuggestedOrder ?? int.MaxValue)
+                // 候選清單的顯示順序：平台推薦店家一律排最前面，
+                // 其次是演算法建議的店家（依建議順序），再來依可買品項數、距離。
+                // 這只影響候選清單怎麼排；行程列表的順序仍然看 SuggestedOrder。
+                .OrderByDescending(c => c.IsRecommend)
+                .ThenBy(c => c.SuggestedOrder ?? int.MaxValue)
                 .ThenByDescending(c => c.MatchedItemIds.Count)
                 .ThenBy(c => c.DistanceMeters)
                 .ToList();
@@ -291,6 +297,38 @@ namespace prjFriendlyFoodWebAPI.Services.FoodMap
                 Trip = trip,
                 FinalCoveragePercentage = coverage,
                 UncoveredItemNames = uncoveredNames
+            };
+        }
+
+        // ---------- 採買模式：勾選已買 ----------
+
+        public async Task<ShoppingItemPurchasedDTO> SetItemPurchasedAsync(
+            int userId,
+            int shoppingItemId,
+            bool isPurchased,
+            CancellationToken cancellationToken = default)
+        {
+            var item = await _context.TFoodMapShoppingListItems
+                .Include(i => i.FShoppingList)
+                .FirstOrDefaultAsync(i => i.FShoppingItemId == shoppingItemId, cancellationToken)
+                ?? throw new FoodMapNotFoundException("找不到這個採買品項，清單可能已經被重新儲存，請重新規劃");
+
+            if (item.FShoppingList.FUserId != userId)
+            {
+                throw new FoodMapForbiddenException("這份採買清單不屬於目前登入的帳號");
+            }
+
+            if (item.FIsPurchased != isPurchased)
+            {
+                item.FIsPurchased = isPurchased;
+                item.FUpdatedTime = DateTime.UtcNow;
+                await _context.SaveChangesAsync(cancellationToken);
+            }
+
+            return new ShoppingItemPurchasedDTO
+            {
+                FShoppingListItemId = item.FShoppingItemId,
+                FIsPurchased = item.FIsPurchased
             };
         }
 

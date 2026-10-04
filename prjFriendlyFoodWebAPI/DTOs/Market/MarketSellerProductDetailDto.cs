@@ -13,6 +13,7 @@
         public DateOnly? ExpirationDate { get; set; }
         public byte ProductStatus { get; set; }
         public string ProductsCategoryNo { get; set; }
+        public int? IngredientId { get; set; }
         public List<ProductImageDto> Images { get; set; } = new();
     }
     public class ProductImageDto
