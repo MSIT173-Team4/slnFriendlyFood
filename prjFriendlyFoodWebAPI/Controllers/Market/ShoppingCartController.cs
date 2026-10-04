@@ -1,9 +1,10 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using prjFriendlyFoodWebAPI.DTOs.Market;
-using prjFriendlyFoodWebAPI.Models;
-using Microsoft.AspNetCore.Authorization;
 using prjFriendlyFoodWebAPI.Extensions;
+using prjFriendlyFoodWebAPI.Models;
+using prjFriendlyFoodWebAPI.Services.Market;
 
 namespace prjFriendlyFoodWebAPI.Controllers.Market
 {
@@ -13,10 +14,12 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
     public class ShoppingCartController : ControllerBase
     {
         private readonly FriendlyFoodDbContext _context;
+        private readonly ICartService _cartService;
 
-        public ShoppingCartController(FriendlyFoodDbContext context)
+        public ShoppingCartController(FriendlyFoodDbContext context, ICartService cartService)
         {
             _context = context;
+            _cartService = cartService;
         }
 
         // GET /api/ShoppingCart — 取得購物車（依賣家分組）
@@ -80,52 +83,13 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
             return Ok(new { count });
         }
 
-        // POST /api/ShoppingCart/add — 加入購物車（原本的，維持不動）
+        // POST /api/ShoppingCart/add — 加入購物車（規則統一由 CartService 判斷）
         [HttpPost("add")]
         public async Task<IActionResult> AddToCart([FromBody] AddToCartDto dto)
         {
-            int userId = User.GetUserId();
-
-            var product = await _context.TMarketProducts
-                .FirstOrDefaultAsync(p => p.FProductId == dto.ProductId
-                                     && p.FProductStatus == (byte)1);
-
-            if (product == null)
-                return NotFound(new { message = "商品不存在或已下架" });
-
-            if (product.FStock <= 0)
-                return BadRequest(new { message = "商品已售完" });
-
-            // 賣家不能購買自己上架的商品（前端隱藏按鈕）
-            var isOwnProduct = await _context.TSellers
-                .AnyAsync(s => s.FId == product.FSellerId && s.FUserId == userId);
-            if (isOwnProduct)
-                return BadRequest(new { message = "不能購買自己上架的商品" });
-
-            var existing = await _context.TMarketShoppingCarts
-                .FirstOrDefaultAsync(c => c.FUserId == userId
-                                     && c.FProductId == dto.ProductId);
-
-            if (existing != null)
-            {
-                int newQty = existing.FQuantity + dto.Quantity;
-                if (newQty > product.FStock)
-                    return BadRequest(new { message = $"數量超過庫存上限(目前庫存:{product.FStock})" });
-                existing.FQuantity = newQty;
-            }
-            else
-            {
-                if (dto.Quantity > product.FStock)
-                    return BadRequest(new { message = $"數量超過庫存上限(目前庫存:{product.FStock})" });
-
-                _context.TMarketShoppingCarts.Add(new TMarketShoppingCart
-                {
-                    FUserId = userId,
-                    FSellerId = product.FSellerId,
-                    FProductId = dto.ProductId,
-                    FQuantity = dto.Quantity
-                });
-            }
+            var result = await _cartService.AddAsync(User.GetUserId(), dto.ProductId, dto.Quantity);
+            if (!result.Success)
+                return BadRequest(new { message = result.Message });
 
             await _context.SaveChangesAsync();
             return Ok(new { message = "已加入購物車" });
