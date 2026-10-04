@@ -27,7 +27,7 @@ var apiKey = builder.Configuration["Cloudinary:ApiKey"];
 var apiSecret = builder.Configuration["Cloudinary:ApiSecret"];
 
 if (string.IsNullOrWhiteSpace(cloudName) || string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(apiSecret))
-   throw new InvalidOperationException("Cloudinary 設定未填寫，請檢查 appsettings.Development.json");
+    throw new InvalidOperationException("Cloudinary 設定未填寫，請檢查 appsettings.Development.json");
 
 var cloudinary = new Cloudinary(new Account(cloudName, apiKey, apiSecret));
 cloudinary.Api.Secure = true;   // 回傳 https 網址
@@ -39,6 +39,12 @@ builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
 
 builder.Services.AddScoped<ICouponService, CouponService>();
 builder.Services.AddScoped<ISellerIdentityService, SellerIdentityService>();
+builder.Services.AddScoped<IOrderQueryService, OrderQueryService>();
+builder.Services.AddScoped<IOrderEmailService, OrderEmailService>();
+builder.Services.AddScoped<ICartService, CartService>();
+builder.Services.AddScoped<IOrderCancellationService, OrderCancellationService>();
+builder.Services.AddScoped<IReviewService, ReviewService>();
+
 // CORS 允許的前端網址從設定讀取（appsettings 的 Cors:AllowedOrigins，
 // 或環境變數 Cors__AllowedOrigins__0、Cors__AllowedOrigins__1 ...）；沒設定時用本機開發的預設值。
 // 正式環境前端透過 nginx 轉發 /api，前後端同網域，不會觸發 CORS。
@@ -129,6 +135,14 @@ builder.Services.AddScoped<ITripOptimizationService, TripOptimizationService>();
 builder.Services.AddScoped<ITripPlanningService, TripPlanningService>();
 builder.Services.AddScoped<IPostService, PostService>();
 builder.Services.AddScoped<ICommentService, CommentService>();
+builder.Services.AddScoped<IOrderFulfillmentService, OrderFulfillmentService>();
+builder.Services.Configure<MarketOptions>(builder.Configuration.GetSection("Market"));
+// 只有設定開啟時才註冊背景排程（本機開、Cloud Run 關）
+if (builder.Configuration.GetValue<bool>("Market:EnableExpiryWorker"))
+{
+    builder.Services.AddHostedService<PaymentExpiryWorker>();
+}
+
 builder.Services.AddDbContext<FriendlyFoodDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddRecipeModule();

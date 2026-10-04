@@ -88,6 +88,18 @@ namespace prjFriendlyFoodWebAPI.Controllers.FoodMap
                 await _tripPlanningService.ConfirmTripAsync(CurrentUserId, request, cancellationToken));
         }
 
+        // PATCH /api/trips/shopping-items/12/purchased：採買模式打勾（body：{ "isPurchased": true }）
+        [HttpPatch("shopping-items/{itemId:int}/purchased")]
+        public Task<ActionResult<ShoppingItemPurchasedDTO>> SetItemPurchased(
+            int itemId,
+            [FromBody] SetItemPurchasedRequest request,
+            CancellationToken cancellationToken)
+        {
+            return HandleAsync<ShoppingItemPurchasedDTO>(async () =>
+                await _tripPlanningService.SetItemPurchasedAsync(
+                    CurrentUserId, itemId, request.IsPurchased, cancellationToken));
+        }
+
         // POST /api/trips/plan：舊版相容（一次做完、直接存檔）
         [HttpPost("plan")]
         public Task<ActionResult<PlanTripResultDTO>> PlanTrip(
@@ -135,6 +147,11 @@ namespace prjFriendlyFoodWebAPI.Controllers.FoodMap
     }
 
     // ---------- Request DTO：輸入驗證 ----------
+
+    public class SetItemPurchasedRequest
+    {
+        public bool IsPurchased { get; set; }
+    }
 
     public class PlanTripApiRequest
     {
