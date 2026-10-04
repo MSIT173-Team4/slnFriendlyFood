@@ -15,6 +15,7 @@ using prjFriendlyFoodWebAPI.Services.FoodMap.Interfaces;
 using prjFriendlyFoodWebAPI.Services.ImageUpload;
 using prjFriendlyFoodWebAPI.Services.Market;
 using prjFriendlyFoodWebAPI.Services.Member;
+using prjFriendlyFoodWebAPI.Services.Social;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -126,6 +127,8 @@ builder.Services.AddScoped<IRecommendationServices, RecommendationService>();
 builder.Services.AddScoped<ITripServices, TripServices>();
 builder.Services.AddScoped<ITripOptimizationService, TripOptimizationService>();
 builder.Services.AddScoped<ITripPlanningService, TripPlanningService>();
+builder.Services.AddScoped<IPostService, PostService>();
+builder.Services.AddScoped<ICommentService, CommentService>();
 builder.Services.AddDbContext<FriendlyFoodDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddRecipeModule();
