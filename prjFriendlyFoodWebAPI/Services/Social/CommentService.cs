@@ -22,34 +22,24 @@ namespace prjFriendlyFoodWebAPI.Services.Social
                 .OrderBy(m => m.FMessageDate)
                 .ToListAsync();
 
-            var result = new List<CommentDto>();
+            var userMap = comments.ToDictionary(c => c.FMessageId, c => c.FUser?.FUsername);
 
-            foreach (var m in comments)
+            var result = comments.Select(m => new CommentDto
             {
-                string? replyToUser = null;
-                if (m.FReplyMessageId.HasValue)
-                {
-                    var parentMsg = await _context.TMessageTables
-                        .Include(p => p.FUser)
-                        .FirstOrDefaultAsync(p => p.FMessageId == m.FReplyMessageId);
-                    replyToUser = parentMsg?.FUser?.FUsername;
-                }
-
-                result.Add(new CommentDto
-                {
-                    MessageId = m.FMessageId,
-                    PostId = m.FPostId,
-                    UserId = m.FUserId,
-                    UserName = m.FUser.FUsername,
-                    UserImage = m.FUser.FImage,
-                    ReplyMessageId = m.FReplyMessageId,
-                    ReplyToUserName = replyToUser,
-                    MessageContent = m.FMessageContent,
-                    Likes = m.FLikes,
-                    MessageDate = m.FMessageDate,
-                    IsLikedByCurrentUser = m.TMessageLikes.Any(l => l.FUserId == currentUserId)
-                });
-            }
+                MessageId = m.FMessageId,
+                PostId = m.FPostId,
+                UserId = m.FUserId,
+                UserName = m.FUser?.FUsername ?? "匿名使用者",
+                UserImage = m.FUser?.FImage,
+                ReplyMessageId = m.FReplyMessageId,
+                ReplyToUserName = m.FReplyMessageId.HasValue && userMap.TryGetValue(m.FReplyMessageId.Value, out var name)
+                    ? name
+                    : null,
+                MessageContent = m.FMessageContent,
+                Likes = m.FLikes,
+                MessageDate = m.FMessageDate,
+                IsLikedByCurrentUser = m.TMessageLikes.Any(l => l.FUserId == currentUserId)
+            }).ToList();
 
             return result;
         }
@@ -74,10 +64,18 @@ namespace prjFriendlyFoodWebAPI.Services.Social
 
         public async Task<bool> DeleteCommentAsync(int commentId, int userId)
         {
-            var comment = await _context.TMessageTables.FirstOrDefaultAsync(m => m.FMessageId == commentId && m.FUserId == userId);
+            var comment = await _context.TMessageTables
+                .Include(m => m.FPost)
+                .FirstOrDefaultAsync(m => m.FMessageId == commentId && m.FMessageState == 1);
+
             if (comment == null) return false;
 
-            comment.FMessageState = 0; // 軟刪除
+            bool isCommentOwner = comment.FUserId == userId;
+            bool isPostOwner = comment.FPost != null && comment.FPost.FUserId == userId;
+
+            if (!isCommentOwner && !isPostOwner) return false;
+
+            comment.FMessageState = 0;
             await _context.SaveChangesAsync();
             return true;
         }
@@ -85,9 +83,11 @@ namespace prjFriendlyFoodWebAPI.Services.Social
         public async Task<bool> ToggleLikeCommentAsync(int commentId, int userId)
         {
             var comment = await _context.TMessageTables.FindAsync(commentId);
-            if (comment == null) return false;
+            if (comment == null || comment.FMessageState != 1) return false;
 
-            var existingLike = await _context.TMessageLikes.FirstOrDefaultAsync(l => l.FMessageId == commentId && l.FUserId == userId);
+            var existingLike = await _context.TMessageLikes
+                .FirstOrDefaultAsync(l => l.FMessageId == commentId && l.FUserId == userId);
+
             if (existingLike != null)
             {
                 _context.TMessageLikes.Remove(existingLike);
