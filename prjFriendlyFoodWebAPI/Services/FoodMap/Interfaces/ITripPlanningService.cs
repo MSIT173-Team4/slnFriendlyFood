@@ -22,6 +22,13 @@ namespace prjFriendlyFoodWebAPI.Services.FoodMap.Interfaces
             ConfirmTripRequestDTO request,
             CancellationToken cancellationToken = default);
 
+        // 採買模式：把清單裡的一個品項標成已買／未買（只能改自己的清單）
+        Task<ShoppingItemPurchasedDTO> SetItemPurchasedAsync(
+            int userId,
+            int shoppingItemId,
+            bool isPurchased,
+            CancellationToken cancellationToken = default);
+
         // 舊版相容：一次做完（預覽 → 直接用建議的店家確認）
         Task<PlanTripResultDTO> PlanTripAsync(
             int userId,

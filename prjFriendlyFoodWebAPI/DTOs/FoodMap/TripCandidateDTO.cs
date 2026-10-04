@@ -15,6 +15,9 @@
         // 平台推薦活動（跟採買符合度是兩回事，前端用不同標籤顯示）
         public bool IsRecommend { get; set; }
 
+        // 生鮮類店家（肉舖、傳統市場…）：建議順序會排在一般店家之後
+        public bool IsFresh { get; set; }
+
         // 最佳化演算法有沒有選這家、建議的造訪順序（1 開始，沒選到為 null）
         public bool IsSuggested { get; set; }
         public int? SuggestedOrder { get; set; }
