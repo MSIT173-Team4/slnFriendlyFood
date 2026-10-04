@@ -11,11 +11,13 @@ public interface IRecipePantryService
         CancellationToken cancellationToken);
 
     Task<ServiceResult<PantryItemDto>> CreateItemAsync(
+        int userId,
         CreatePantryItemRequestDto request,
         CancellationToken cancellationToken);
 
     Task<ServiceResult<PantryItemDto>> UpdateItemAsync(
         int pantryId,
+        int userId,
         UpdatePantryItemRequestDto request,
         CancellationToken cancellationToken);
 

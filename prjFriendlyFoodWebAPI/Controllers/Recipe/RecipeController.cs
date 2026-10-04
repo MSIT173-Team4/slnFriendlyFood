@@ -9,6 +9,7 @@ using prjFriendlyFoodWebAPI.Services.Recipe;
 namespace prjFriendlyFoodWebAPI.Controllers.Recipe;
 
 [Route("api/recipe")]
+[Authorize]
 public sealed class RecipeController(IRecipeService recipeService) : BaseController
 {
     [HttpGet]
@@ -17,14 +18,13 @@ public sealed class RecipeController(IRecipeService recipeService) : BaseControl
         [FromQuery] string? search,
         [FromQuery] int? categoryId,
         [FromQuery] string? tag,
-        [FromQuery] int? userId,
         CancellationToken cancellationToken)
     {
         var result = await recipeService.GetRecipesAsync(
             search,
             categoryId,
             tag,
-            userId,
+            User.GetUserId(),
             cancellationToken);
 
         return FromServiceResult(result);
@@ -48,7 +48,6 @@ public sealed class RecipeController(IRecipeService recipeService) : BaseControl
     }
 
     [HttpGet("{recipeId:int}/availability")]
-    [Authorize]
     public async Task<ActionResult<ApiResponse<RecipeAvailabilityDto>>> GetAvailability(
         int recipeId,
         [FromQuery] int targetServings,
@@ -67,7 +66,10 @@ public sealed class RecipeController(IRecipeService recipeService) : BaseControl
         [FromBody] CreateRecipeRequestDto request,
         CancellationToken cancellationToken)
     {
-        var result = await recipeService.CreateRecipeAsync(request, cancellationToken);
+        var result = await recipeService.CreateRecipeAsync(
+            User.GetUserId(),
+            request,
+            cancellationToken);
         return FromServiceResult(result);
     }
 
@@ -77,17 +79,23 @@ public sealed class RecipeController(IRecipeService recipeService) : BaseControl
         [FromBody] UpdateRecipeRequestDto request,
         CancellationToken cancellationToken)
     {
-        var result = await recipeService.UpdateRecipeAsync(recipeId, request, cancellationToken);
+        var result = await recipeService.UpdateRecipeAsync(
+            recipeId,
+            User.GetUserId(),
+            request,
+            cancellationToken);
         return FromServiceResult(result);
     }
 
     [HttpDelete("{recipeId:int}")]
     public async Task<ActionResult<ApiResponse<bool>>> DeleteRecipe(
         int recipeId,
-        [FromQuery] int userId,
         CancellationToken cancellationToken)
     {
-        var result = await recipeService.DeleteRecipeAsync(recipeId, userId, cancellationToken);
+        var result = await recipeService.DeleteRecipeAsync(
+            recipeId,
+            User.GetUserId(),
+            cancellationToken);
         return FromServiceResult(result);
     }
 
@@ -96,13 +104,15 @@ public sealed class RecipeController(IRecipeService recipeService) : BaseControl
         [FromBody] CompleteCookingRequestDto request,
         CancellationToken cancellationToken)
     {
-        var result = await recipeService.CompleteCookingAsync(request, cancellationToken);
+        var result = await recipeService.CompleteCookingAsync(
+            User.GetUserId(),
+            request,
+            cancellationToken);
         return FromServiceResult(result);
     }
 
 
     [HttpGet("shopping-list")]
-    [Authorize]
     public async Task<ActionResult<ApiResponse<RecipeShoppingListDto>>> GetShoppingList(
         CancellationToken cancellationToken)
     {
@@ -113,7 +123,6 @@ public sealed class RecipeController(IRecipeService recipeService) : BaseControl
     }
 
     [HttpPut("shopping-list")]
-    [Authorize]
     public async Task<ActionResult<ApiResponse<RecipeShoppingListDto>>> SaveShoppingList(
         [FromBody] SaveRecipeShoppingListRequestDto request,
         CancellationToken cancellationToken)
