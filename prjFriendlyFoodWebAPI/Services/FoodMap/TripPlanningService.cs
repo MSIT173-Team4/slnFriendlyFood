@@ -221,7 +221,11 @@ namespace prjFriendlyFoodWebAPI.Services.FoodMap
                             r.Place.Location!.Latitude, r.Place.Location!.Longitude))
                     };
                 })
-                .OrderBy(c => c.SuggestedOrder ?? int.MaxValue)
+                // 候選清單的顯示順序：平台推薦店家一律排最前面，
+                // 其次是演算法建議的店家（依建議順序），再來依可買品項數、距離。
+                // 這只影響候選清單怎麼排；行程列表的順序仍然看 SuggestedOrder。
+                .OrderByDescending(c => c.IsRecommend)
+                .ThenBy(c => c.SuggestedOrder ?? int.MaxValue)
                 .ThenByDescending(c => c.MatchedItemIds.Count)
                 .ThenBy(c => c.DistanceMeters)
                 .ToList();
