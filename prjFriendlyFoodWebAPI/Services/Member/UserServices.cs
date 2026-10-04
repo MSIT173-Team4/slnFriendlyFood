@@ -184,6 +184,28 @@ namespace prjFriendlyFoodWebAPI.Services.Member
             await _db.SaveChangesAsync();
         
         }
+        public async Task<UserRecipeStatDTO> GetRecipe(int id)
+        {
+            var recipes = await _db.TRecipes
+            .Where(r => r.FUserId == id)
+            .Select(r => new UserRecipeDTO
+            {
+                RecipeId = r.FRecipeId,
+                Title = r.FTitle,
+                CoverImageUrl = r.FCoverImageUrl,
+                Views = r.FViews,
+                Likes = r.FLikes,
+                Favorites = r.FFavorites,
+                CreatedAt = r.FCreatedAt
+            })
+            .ToListAsync();
+            var result = new UserRecipeStatDTO
+            {
+                Recipes = recipes,
+                TotalViews = recipes.Sum(r => r.Views)
+            };
+            return result;
+        }
     }
 }
 

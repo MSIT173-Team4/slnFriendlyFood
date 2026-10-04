@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ActionConstraints;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Client;
 using Microsoft.IdentityModel.Tokens;
@@ -253,6 +254,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Member
 
             return Ok(new
             {
+                userId = user.FId,
                 userName = user.FUsername,
                 userImage = user.FImage
             });
@@ -499,6 +501,29 @@ namespace prjFriendlyFoodWebAPI.Controllers.Member
                 message = "商家建立成功"
             });
         }
+        [Authorize]
+        [HttpGet("GetRecipe")]
+        public async Task<IActionResult> GetMyRecipes()
+        {
+            string? userId =
+                User.FindFirstValue(ClaimTypes.NameIdentifier);
+            UserRecipeStatDTO recipes=await _us.GetRecipe(Convert.ToInt32(userId));
+            return Ok(recipes);
+        
+        }
+        //[Authorize]
+        //[HttpGet("GetPost")]
+        //public async Task<IActionResult> GetPost()
+        //{
 
+        //}
+        [Authorize]
+        [HttpGet("GetUserRecipes/{id}")]
+        public async Task<IActionResult> GetUserRecipes(int id)
+        {
+            var result = await _us.GetRecipe(id);
+
+            return Ok(result);
+        }
     }
 }

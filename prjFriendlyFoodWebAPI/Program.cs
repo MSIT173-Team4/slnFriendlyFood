@@ -14,9 +14,10 @@ using prjFriendlyFoodWebAPI.Services.FoodMap;
 using prjFriendlyFoodWebAPI.Services.FoodMap.Interfaces;
 using prjFriendlyFoodWebAPI.Services.Member;
 using System.Text;
+using prjFriendlyFoodWebAPI.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
-
+builder.Services.AddSignalR();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAngularClient", policy =>
@@ -111,7 +112,7 @@ if (app.Environment.IsDevelopment())
         await app.SeedRecipeDevelopmentDataAsync();
     }
 }
-
+app.MapHub<ChatHub>("/chatHub");
 app.UseCors("AllowAngularClient");
 app.UseStaticFiles();
 app.UseHttpsRedirection();

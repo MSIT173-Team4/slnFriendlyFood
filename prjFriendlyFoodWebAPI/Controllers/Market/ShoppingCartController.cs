@@ -84,7 +84,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                 return BadRequest(new { message = "商品已售完" });
 
             var existing = await _context.TMarketShoppingCarts
-                .FirstOrDefaultAsync(c => c.FUserId == userId
+                .FirstOrDefaultAsync(c => c.FUserId== userId
                                      && c.FProductId == dto.ProductId);
 
             if (existing != null)
