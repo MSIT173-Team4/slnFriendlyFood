@@ -28,6 +28,8 @@ namespace prjFriendlyFoodWebAPI.DTOs.Market
         // 改成接收實際檔案，允許多張，非必填
         public List<IFormFile>? Images { get; set; }
 
+        public int? IngredientId { get; set; }//串接食譜用
+
         public byte ProductStatus { get; set; } = 1; // 預設上架
     }
 }

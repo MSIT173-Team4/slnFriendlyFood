@@ -102,6 +102,10 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                     return BadRequest(new { message = error });
             }
 
+            if (dto.IngredientId.HasValue &&
+                !await _context.TIngredients.AnyAsync(i => i.FId == dto.IngredientId.Value))
+                return BadRequest(new { message = "食材不存在" });
+
             // ===== Step 2：上傳到 Cloudinary =====
             // 用 List 記住「已經傳上去的」，失敗時才知道要清掉哪些
 
@@ -141,7 +145,8 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                 FExpirationDate = dto.ExpirationDate,
                 FProductStatus = dto.ProductStatus,
                 FReportCount = 0,
-                FProductDate = DateTime.Now
+                FProductDate = DateTime.Now,
+                FIngredientId = dto.IngredientId
             };
 
             // 掛在導覽屬性底下，EF 把新商品的 FProductId 填進每張圖片
@@ -487,6 +492,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                     BrandOrOrigin = p.FBrandOrOrigin,
                     ManufacturingDate = p.FManufacturingDate,
                     ExpirationDate = p.FExpirationDate,
+                    IngredientId = p.FIngredientId,
                     ProductStatus = p.FProductStatus,
                     ProductsCategoryNo = p.FProductsCategoryNo,
                     Images = p.TMarketProductImages
@@ -530,6 +536,10 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                 return BadRequest(new { message = "商品分類不存在" });
 
             var deleteIds = dto.DeleteImageIds?.ToList() ?? new List<int>();
+
+            if (dto.IngredientId.HasValue &&
+                !await _context.TIngredients.AnyAsync(i => i.FId == dto.IngredientId.Value))
+                return BadRequest(new { message = "食材不存在" });
 
             // 傳入不屬於此商品的圖片 Id → 明確回報，而不是安靜地忽略
             var ownedImageIds = product.TMarketProductImages
@@ -585,6 +595,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
             product.FDescription = dto.Description;
             product.FManufacturingDate = dto.ManufacturingDate;
             product.FExpirationDate = dto.ExpirationDate;
+            product.FIngredientId = dto.IngredientId;
 
             if (dto.ProductStatus.HasValue)
                 product.FProductStatus = dto.ProductStatus.Value;
@@ -678,6 +689,19 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
             await _context.SaveChangesAsync();
 
             return Ok(new { message = "庫存更新成功", stock = product.FStock, productStatus = product.FProductStatus });
+        }
+
+        // GET /api/MarketProduct/ingredients — 新增/編輯商品時的食材下拉選單
+        [HttpGet("ingredients")]
+        [Authorize]
+        public async Task<IActionResult> GetIngredients()
+        {
+            var list = await _context.TIngredients
+                .AsNoTracking()
+                .OrderBy(i => i.FName)
+                .Select(i => new { ingredientId = i.FId, name = i.FName })
+                .ToListAsync();
+            return Ok(list);
         }
     }
 
