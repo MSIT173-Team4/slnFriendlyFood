@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using prjFriendlyFoodWebAPI.DTOs.Recipe;
 using prjFriendlyFoodWebAPI.DTOs.Recipe.Requests;
@@ -7,6 +8,7 @@ using prjFriendlyFoodWebAPI.ExternalServices.SmartBot;
 namespace prjFriendlyFoodWebAPI.Controllers.Recipe;
 
 [Route("api/recipe/ai")]
+[Authorize]
 public sealed class RecipeAiController(IRecipeAiClient recipeAiClient) : BaseController
 {
     [HttpPost("localize-ingredient")]

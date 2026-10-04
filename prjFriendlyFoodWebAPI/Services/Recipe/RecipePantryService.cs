@@ -38,10 +38,11 @@ public sealed class RecipePantryService(FriendlyFoodDbContext context) : IRecipe
     }
 
     public async Task<ServiceResult<PantryItemDto>> CreateItemAsync(
+        int userId,
         CreatePantryItemRequestDto request,
         CancellationToken cancellationToken)
     {
-        if (!await context.TUsers.AnyAsync(user => user.FId == request.UserId, cancellationToken))
+        if (!await context.TUsers.AnyAsync(user => user.FId == userId, cancellationToken))
         {
             return ServiceResult<PantryItemDto>.NotFound("找不到指定的會員。");
         }
@@ -57,7 +58,7 @@ public sealed class RecipePantryService(FriendlyFoodDbContext context) : IRecipe
 
         var pantryItem = new TRecipeUserPantry
         {
-            FUserId = request.UserId,
+            FUserId = userId,
             FIngredientId = request.IngredientId,
             FAmount = request.Amount,
             FUnit = request.Unit.Trim(),
@@ -77,6 +78,7 @@ public sealed class RecipePantryService(FriendlyFoodDbContext context) : IRecipe
 
     public async Task<ServiceResult<PantryItemDto>> UpdateItemAsync(
         int pantryId,
+        int userId,
         UpdatePantryItemRequestDto request,
         CancellationToken cancellationToken)
     {
@@ -88,7 +90,7 @@ public sealed class RecipePantryService(FriendlyFoodDbContext context) : IRecipe
             return ServiceResult<PantryItemDto>.NotFound("找不到要更新的冰箱項目。");
         }
 
-        if (pantryItem.FUserId != request.UserId)
+        if (pantryItem.FUserId != userId)
         {
             return ServiceResult<PantryItemDto>.Conflict("不可修改其他會員的冰箱資料。");
         }
