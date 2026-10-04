@@ -169,11 +169,12 @@ public sealed class RecipeService(
     }
 
     public async Task<ServiceResult<RecipeDetailDto>> CreateRecipeAsync(
+        int userId,
         CreateRecipeRequestDto request,
         CancellationToken cancellationToken)
     {
         var validation = await ValidateOwnerAndCategoryAsync(
-            request.UserId,
+            userId,
             request.CategoryId,
             cancellationToken);
 
@@ -188,7 +189,7 @@ public sealed class RecipeService(
         {
             var recipe = new TRecipe
             {
-                FUserId = request.UserId,
+                FUserId = userId,
                 FCategoryId = request.CategoryId,
                 FTitle = request.Title.Trim(),
                 FDescription = request.Description?.Trim(),
@@ -229,6 +230,7 @@ public sealed class RecipeService(
 
     public async Task<ServiceResult<RecipeDetailDto>> UpdateRecipeAsync(
         int recipeId,
+        int userId,
         UpdateRecipeRequestDto request,
         CancellationToken cancellationToken)
     {
@@ -240,13 +242,13 @@ public sealed class RecipeService(
             return ServiceResult<RecipeDetailDto>.NotFound("找不到要更新的食譜。");
         }
 
-        if (recipe.FUserId != request.UserId)
+        if (recipe.FUserId != userId)
         {
             return ServiceResult<RecipeDetailDto>.Conflict("只有食譜建立者可以修改內容。");
         }
 
         var validation = await ValidateOwnerAndCategoryAsync(
-            request.UserId,
+            userId,
             request.CategoryId,
             cancellationToken);
 
@@ -317,6 +319,7 @@ public sealed class RecipeService(
     }
 
     public async Task<ServiceResult<IReadOnlyCollection<CookingDeductionResultDto>>> CompleteCookingAsync(
+        int userId,
         CompleteCookingRequestDto request,
         CancellationToken cancellationToken)
     {
@@ -327,7 +330,7 @@ public sealed class RecipeService(
         try
         {
             if (!await context.TUsers.AnyAsync(
-                    user => user.FId == request.UserId,
+                    user => user.FId == userId,
                     cancellationToken))
             {
                 return ServiceResult<IReadOnlyCollection<CookingDeductionResultDto>>.NotFound(
@@ -368,7 +371,7 @@ public sealed class RecipeService(
 
             var ingredientIds = ingredients.Select(item => item.FIngredientId).ToArray();
             var pantryLots = await context.TRecipeUserPantries
-                .Where(item => item.FUserId == request.UserId && ingredientIds.Contains(item.FIngredientId))
+                .Where(item => item.FUserId == userId && ingredientIds.Contains(item.FIngredientId))
                 .OrderBy(item => item.FExpirationDate)
                 .ThenBy(item => item.FPantryId)
                 .ToListAsync(cancellationToken);
