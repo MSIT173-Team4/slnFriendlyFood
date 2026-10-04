@@ -558,9 +558,9 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         public IActionResult PaymentResult()
         {
             // 從綠界的 Form POST 或 Query String 取 MerchantTradeNo
-            var merchantTradeNo = Request.Form.ContainsKey("MerchantTradeNo")
-                ? Request.Form["MerchantTradeNo"].ToString()
-                : Request.Query["MerchantTradeNo"].ToString();
+            var merchantTradeNo = Request.HasFormContentType && Request.Form.ContainsKey("MerchantTradeNo")
+                                ? Request.Form["MerchantTradeNo"].ToString()
+                                : Request.Query["MerchantTradeNo"].ToString();
 
             if (!string.IsNullOrEmpty(merchantTradeNo))
             {
