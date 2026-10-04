@@ -18,11 +18,13 @@ public interface IRecipeService
         CancellationToken cancellationToken);
 
     Task<ServiceResult<RecipeDetailDto>> CreateRecipeAsync(
+        int userId,
         CreateRecipeRequestDto request,
         CancellationToken cancellationToken);
 
     Task<ServiceResult<RecipeDetailDto>> UpdateRecipeAsync(
         int recipeId,
+        int userId,
         UpdateRecipeRequestDto request,
         CancellationToken cancellationToken);
 
@@ -32,6 +34,7 @@ public interface IRecipeService
         CancellationToken cancellationToken);
 
     Task<ServiceResult<IReadOnlyCollection<CookingDeductionResultDto>>> CompleteCookingAsync(
+        int userId,
         CompleteCookingRequestDto request,
         CancellationToken cancellationToken);
 

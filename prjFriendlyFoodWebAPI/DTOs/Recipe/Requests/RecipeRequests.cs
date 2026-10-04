@@ -5,9 +5,6 @@ namespace prjFriendlyFoodWebAPI.DTOs.Recipe.Requests;
 public sealed class CreateRecipeRequestDto
 {
     [Range(1, int.MaxValue)]
-    public int UserId { get; init; }
-
-    [Range(1, int.MaxValue)]
     public int CategoryId { get; init; }
 
     [Required, StringLength(100)]
@@ -46,9 +43,6 @@ public sealed class CreateRecipeRequestDto
 
 public sealed class UpdateRecipeRequestDto
 {
-    [Range(1, int.MaxValue)]
-    public int UserId { get; init; }
-
     [Range(1, int.MaxValue)]
     public int CategoryId { get; init; }
 
@@ -125,19 +119,10 @@ public sealed class RecipeStepInputDto
 public sealed class CompleteCookingRequestDto
 {
     [Range(1, int.MaxValue)]
-    public int UserId { get; init; }
-
-    [Range(1, int.MaxValue)]
     public int RecipeId { get; init; }
 
     [Range(1, 20)]
     public int TargetServings { get; init; }
-}
-
-public sealed class UserRecipeActionRequestDto
-{
-    [Range(1, int.MaxValue)]
-    public int UserId { get; init; }
 }
 
 public sealed class SaveRecipeShoppingListRequestDto
