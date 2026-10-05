@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using prjFriendlyFoodWebAPI.DTOs.Member;
 using prjFriendlyFoodWebAPI.Models;
+using prjFriendlyFoodWebAPI.Services.Recipe;
 using System.Security.Claims;
 using System.Security.Cryptography;
 
@@ -199,6 +200,11 @@ namespace prjFriendlyFoodWebAPI.Services.Member
                 CreatedAt = r.FCreatedAt
             })
             .ToListAsync();
+            foreach (var recipe in recipes)
+            {
+                recipe.CoverImageUrl = RecipeImageUrlResolver.Resolve(recipe.Title, recipe.CoverImageUrl);
+            }
+
             var result = new UserRecipeStatDTO
             {
                 Recipes = recipes,
