@@ -19,6 +19,10 @@ public partial class FriendlyFoodDbContext : DbContext
 
     public virtual DbSet<TAttachmentTable> TAttachmentTables { get; set; }
 
+    public virtual DbSet<TChat> TChats { get; set; }
+
+    public virtual DbSet<TChatRoom> TChatRooms { get; set; }
+
     public virtual DbSet<TConversationMember> TConversationMembers { get; set; }
 
     public virtual DbSet<TConversationMessagesTable> TConversationMessagesTables { get; set; }
@@ -125,7 +129,7 @@ public partial class FriendlyFoodDbContext : DbContext
     {
         modelBuilder.Entity<TApply>(entity =>
         {
-            entity.HasKey(e => e.FId).HasName("PK__tApply__D9F8227C89416337");
+            entity.HasKey(e => e.FId).HasName("PK__tApply__D9F8227C64EB5264");
 
             entity.ToTable("tApply");
 
@@ -170,7 +174,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TApplyStatus>(entity =>
         {
-            entity.HasKey(e => e.FId).HasName("PK__tApplySt__D9F8227CEEADF9F1");
+            entity.HasKey(e => e.FId).HasName("PK__tApplySt__D9F8227CC7F26CD4");
 
             entity.ToTable("tApplyStatus");
 
@@ -216,9 +220,67 @@ public partial class FriendlyFoodDbContext : DbContext
                 .HasConstraintName("FK_tAttachmentTable_tConversationMessagesTable");
         });
 
+        modelBuilder.Entity<TChat>(entity =>
+        {
+            entity.HasKey(e => e.FId).HasName("PK__tChat__D9F8227C54A6331A");
+
+            entity.ToTable("tChat");
+
+            entity.Property(e => e.FId).HasColumnName("fId");
+            entity.Property(e => e.FChatRoomId).HasColumnName("fChatRoomId");
+            entity.Property(e => e.FContent).HasColumnName("fContent");
+            entity.Property(e => e.FCreatedTime)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnName("fCreatedTime");
+            entity.Property(e => e.FFileName)
+                .HasMaxLength(255)
+                .HasColumnName("fFileName");
+            entity.Property(e => e.FFileUrl)
+                .HasMaxLength(255)
+                .HasColumnName("fFileURL");
+            entity.Property(e => e.FMessageType).HasColumnName("fMessageType");
+            entity.Property(e => e.FSenderId).HasColumnName("fSenderId");
+
+            entity.HasOne(d => d.FChatRoom).WithMany(p => p.TChats)
+                .HasForeignKey(d => d.FChatRoomId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_tChat_tChatRoom");
+
+            entity.HasOne(d => d.FSender).WithMany(p => p.TChats)
+                .HasForeignKey(d => d.FSenderId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_tChat_tUser");
+        });
+
+        modelBuilder.Entity<TChatRoom>(entity =>
+        {
+            entity.HasKey(e => e.FId).HasName("PK__tChatRoo__D9F8227CB076C023");
+
+            entity.ToTable("tChatRoom");
+
+            entity.HasIndex(e => new { e.FUser1Id, e.FUser2Id }, "UQ_tChatRoom_User1Id_User2Id").IsUnique();
+
+            entity.Property(e => e.FId).HasColumnName("fId");
+            entity.Property(e => e.FCreatedTime)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnName("fCreatedTime");
+            entity.Property(e => e.FUser1Id).HasColumnName("fUser1Id");
+            entity.Property(e => e.FUser2Id).HasColumnName("fUser2Id");
+
+            entity.HasOne(d => d.FUser1).WithMany(p => p.TChatRoomFUser1s)
+                .HasForeignKey(d => d.FUser1Id)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_ChatRoom_User1");
+
+            entity.HasOne(d => d.FUser2).WithMany(p => p.TChatRoomFUser2s)
+                .HasForeignKey(d => d.FUser2Id)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_ChatRoom_User2");
+        });
+
         modelBuilder.Entity<TConversationMember>(entity =>
         {
-            entity.HasKey(e => new { e.FConversationId, e.FUserId }).HasName("PK__tConvers__8DB173362B53D891");
+            entity.HasKey(e => new { e.FConversationId, e.FUserId }).HasName("PK__tConvers__8DB17336F26D43F0");
 
             entity.ToTable("tConversationMember");
 
@@ -232,12 +294,12 @@ public partial class FriendlyFoodDbContext : DbContext
             entity.HasOne(d => d.FConversation).WithMany(p => p.TConversationMembers)
                 .HasForeignKey(d => d.FConversationId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__tConversa__fConv__57DD0BE4");
+                .HasConstraintName("FK__tConversa__fConv__7755B73D");
 
             entity.HasOne(d => d.FUser).WithMany(p => p.TConversationMembers)
                 .HasForeignKey(d => d.FUserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK__tConversa__fUser__4E1E9780");
+                .HasConstraintName("FK__tConversa__fUser__7849DB76");
         });
 
         modelBuilder.Entity<TConversationMessagesTable>(entity =>
@@ -293,7 +355,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TEmailVerification>(entity =>
         {
-            entity.HasKey(e => e.FId).HasName("PK__tEmailVe__D9F8227CDDD585F7");
+            entity.HasKey(e => e.FId).HasName("PK__tEmailVe__D9F8227CD39557D6");
 
             entity.ToTable("tEmailVerification");
 
@@ -318,7 +380,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TExternalLogin>(entity =>
         {
-            entity.HasKey(e => e.FId).HasName("PK__tExterna__D9F8227C4287A4EB");
+            entity.HasKey(e => e.FId).HasName("PK__tExterna__D9F8227CC4786280");
 
             entity.ToTable("tExternalLogin");
 
@@ -371,7 +433,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TFoodMapIngredient>(entity =>
         {
-            entity.HasKey(e => e.FIngredientId).HasName("PK__tFoodMap__3A47A0459BCA0413");
+            entity.HasKey(e => e.FIngredientId).HasName("PK__tFoodMap__3A47A045E261A37F");
 
             entity.ToTable("tFoodMapIngredient");
 
@@ -1451,7 +1513,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TPostBlockTable>(entity =>
         {
-            entity.HasKey(e => e.FPostBlockId).HasName("PK__tPostBlo__92BD60D697CC495B");
+            entity.HasKey(e => e.FPostBlockId).HasName("PK__tPostBlo__92BD60D66426103C");
 
             entity.ToTable("tPostBlockTable");
 
@@ -1478,7 +1540,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TPostBookmark>(entity =>
         {
-            entity.HasKey(e => e.FBookmarkId).HasName("PK__tPostBoo__0E20EC4F8F0FC010");
+            entity.HasKey(e => e.FBookmarkId).HasName("PK__tPostBoo__0E20EC4F8561F8A6");
 
             entity.ToTable("tPostBookmarks");
 
@@ -1754,7 +1816,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TRefreshToken>(entity =>
         {
-            entity.HasKey(e => e.FId).HasName("PK__tRefresh__D9F8227C77B8E4EB");
+            entity.HasKey(e => e.FId).HasName("PK__tRefresh__D9F8227CB3CE90BE");
 
             entity.ToTable("tRefreshToken");
 
@@ -1782,7 +1844,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TSeller>(entity =>
         {
-            entity.HasKey(e => e.FId).HasName("PK__tSeller__D9F8227C08DBAF71");
+            entity.HasKey(e => e.FId).HasName("PK__tSeller__D9F8227CCC06BA7F");
 
             entity.ToTable("tSeller");
 
@@ -1823,7 +1885,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
         modelBuilder.Entity<TStatus>(entity =>
         {
-            entity.HasKey(e => e.FId).HasName("PK__tStatus__D9F8227C1A5B5342");
+            entity.HasKey(e => e.FId).HasName("PK__tStatus__D9F8227CE4D721B5");
 
             entity.ToTable("tStatus");
 
@@ -1843,7 +1905,7 @@ public partial class FriendlyFoodDbContext : DbContext
 
             entity.ToTable("tUser");
 
-            entity.HasIndex(e => e.FUsername, "UQ__tmp_ms_x__A8F6564A1F436BA9").IsUnique();
+            entity.HasIndex(e => e.FUsername, "UQ__tUser__A8F6564AFD096D06").IsUnique();
 
             entity.Property(e => e.FId).HasColumnName("fId");
             entity.Property(e => e.FAddress)

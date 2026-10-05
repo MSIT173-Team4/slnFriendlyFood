@@ -27,6 +27,30 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[tAttachmentTable]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tChat]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tChatRoom]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tConversationMember]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tConversationMessagesTable]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tConversationsTable]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[tEmailVerification]",
          "ObjectType": 0
       },
@@ -147,7 +171,23 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[tMessageLike]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[tMessageTable]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tPostBlockTable]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tPostBookmarks]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tPostLike]",
          "ObjectType": 0
       },
       {
@@ -191,7 +231,15 @@
          "ObjectType": 0
       },
       {
+         "Name": "[dbo].[tRefreshToken]",
+         "ObjectType": 0
+      },
+      {
          "Name": "[dbo].[tSeller]",
+         "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[tSortTable]",
          "ObjectType": 0
       },
       {
