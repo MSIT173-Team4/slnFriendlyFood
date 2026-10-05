@@ -154,7 +154,7 @@ public sealed class RecipeRecommendationService(FriendlyFoodDbContext context)
                     new RecipeRecommendationDto(
                         recipe.FRecipeId,
                         recipe.FTitle,
-                        recipe.FCoverImageUrl,
+                        RecipeImageUrlResolver.Resolve(recipe.FTitle, recipe.FCoverImageUrl),
                         recipe.CategoryName,
                         recipe.FCookingMinutes,
                         matchPercentage,
@@ -243,7 +243,7 @@ public sealed class RecipeRecommendationService(FriendlyFoodDbContext context)
                     recipe.FRecipeId,
                     recipe.FTitle,
                     recipe.FDescription ?? string.Empty,
-                    recipe.FCoverImageUrl,
+                    RecipeImageUrlResolver.Resolve(recipe.FTitle, recipe.FCoverImageUrl),
                     recipe.FCookingMinutes,
                     recipe.FTotalCalories,
                     recipe.FDefaultServings,

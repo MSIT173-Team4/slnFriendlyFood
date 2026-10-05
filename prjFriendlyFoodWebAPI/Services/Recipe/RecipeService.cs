@@ -136,7 +136,7 @@ public sealed class RecipeService(
             row.Recipe.FRecipeId,
             row.Recipe.FTitle,
             row.Recipe.FDescription ?? string.Empty,
-            row.Recipe.FCoverImageUrl,
+            RecipeImageUrlResolver.Resolve(row.Recipe.FTitle, row.Recipe.FCoverImageUrl),
             row.Recipe.FCookingMinutes,
             row.Recipe.FTotalCalories,
             row.Recipe.FDefaultServings,
@@ -873,6 +873,14 @@ public sealed class RecipeService(
                 item.FImageUrl,
                 item.FTimerSeconds))
             .ToListAsync(cancellationToken);
+        steps = steps
+            .Select(step => step with
+            {
+                ImageUrl = step.ImageUrl is null
+                    ? null
+                    : RecipeImageUrlResolver.Resolve(header.Recipe.FTitle, step.ImageUrl)
+            })
+            .ToList();
 
         var tags = await (
             from mapping in context.TRecipeTagMappings.AsNoTracking()
@@ -890,7 +898,7 @@ public sealed class RecipeService(
             recipe.FCategoryId,
             recipe.FTitle,
             recipe.FDescription ?? string.Empty,
-            recipe.FCoverImageUrl,
+            RecipeImageUrlResolver.Resolve(recipe.FTitle, recipe.FCoverImageUrl),
             recipe.FYtVideoId,
             recipe.FAiPrepTips,
             recipe.FIsAiGenerated,
