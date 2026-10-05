@@ -1,108 +1,161 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using prjFriendlyFoodWebAPI.DTOs.FoodMap;
 using prjFriendlyFoodWebAPI.ExternalServices.FoodMap.Google.Models;
-using prjFriendlyFoodWebAPI.Models;
 using prjFriendlyFoodWebAPI.Services.FoodMap;
 using prjFriendlyFoodWebAPI.Services.FoodMap.Interfaces;
-using System.ComponentModel.DataAnnotations;
-using System.Security.Claims;
 
 namespace prjFriendlyFoodWebAPI.Controllers.FoodMap
 {
+    // 全部需要登入：JWT 由登入時寫入的 token cookie 帶過來（前端要加 withCredentials: true）
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class TripsController : ControllerBase
     {
-        protected int CurrentUserId => 1;
         private readonly ITripServices _tripServices;
         private readonly ITripPlanningService _tripPlanningService;
 
         public TripsController(ITripServices tripServices, ITripPlanningService tripPlanningService)
         {
             _tripServices = tripServices;
-
             _tripPlanningService = tripPlanningService;
         }
 
-       
+        // 原本寫死 1，改成從 JWT 讀目前登入的使用者（跟 UsersController 一樣用 NameIdentifier）
+        private int CurrentUserId =>
+            int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId)
+                ? userId
+                : throw new UnauthorizedAccessException("無法解析使用者身分");
 
-        [HttpGet("{id:long}")]
-        public async Task<ActionResult<TripDTO>>
-        GetTrip(int id)
+        // GET /api/trips：我的行程
+        [HttpGet]
+        public Task<ActionResult<List<TripDTO>>> GetTrips(CancellationToken cancellationToken)
         {
-            var trip =
-                await _tripServices
-                    .GetTripByIdAsync(id);
-
-            if (trip is null)
-            {
-                return NotFound(new
-                {
-                    message = "找不到指定行程"
-                });
-            }
-
-            return Ok(trip);
+            return HandleAsync<List<TripDTO>>(async () =>
+                await _tripServices.GetTripsAsync(CurrentUserId, cancellationToken));
         }
+
+        // GET /api/trips/5
+        [HttpGet("{id:int}")]
+        public Task<ActionResult<TripDTO>> GetTrip(int id, CancellationToken cancellationToken)
+        {
+            return HandleAsync<TripDTO>(async () =>
+                await _tripServices.GetTripByIdAsync(id, CurrentUserId, cancellationToken)
+                ?? throw new FoodMapNotFoundException("找不到指定行程"));
+        }
+
+        // POST /api/trips：直接用指定的店家建立行程（不算路線）
         [HttpPost]
-        public async Task<ActionResult<TripDTO>> CreateTrip([FromBody] CreateTripRequestDTO tripDTO)
+        public Task<ActionResult<TripDTO>> CreateTrip(
+            [FromBody] CreateTripRequestDTO tripDTO,
+            CancellationToken cancellationToken)
         {
-            try
-            {
-                var trip = await _tripServices.CreateTripAsync(tripDTO);
-                return Ok(trip);
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            return HandleAsync<TripDTO>(async () =>
+                await _tripServices.CreateTripAsync(tripDTO, CurrentUserId, null, cancellationToken));
         }
 
+        // GET /api/trips/planning-context?shoppingListId=6
+        // trip-builder 進頁面時呼叫：要規劃哪一份清單（沒帶就用自己目前的清單）、會員地址座標
+        [HttpGet("planning-context")]
+        public Task<ActionResult<PlanningContextDTO>> GetPlanningContext(
+            [FromQuery] int? shoppingListId,
+            CancellationToken cancellationToken)
+        {
+            return HandleAsync<PlanningContextDTO>(async () =>
+                await _tripPlanningService.GetPlanningContextAsync(CurrentUserId, shoppingListId, cancellationToken));
+        }
+
+        // POST /api/trips/plan/preview：第一段，只計算、不存檔
+        [HttpPost("plan/preview")]
+        public Task<ActionResult<PlanTripPreviewResultDTO>> PreviewTrip(
+            [FromBody] PlanTripApiRequest request,
+            CancellationToken cancellationToken)
+        {
+            return HandleAsync<PlanTripPreviewResultDTO>(async () =>
+                await _tripPlanningService.PreviewTripAsync(CurrentUserId, request.ToServiceRequest(), cancellationToken));
+        }
+
+        // POST /api/trips/plan/confirm：第二段，使用者確認後建立行程並算路線
+        [HttpPost("plan/confirm")]
+        public Task<ActionResult<PlanTripResultDTO>> ConfirmTrip(
+            [FromBody] ConfirmTripRequestDTO request,
+            CancellationToken cancellationToken)
+        {
+            return HandleAsync<PlanTripResultDTO>(async () =>
+                await _tripPlanningService.ConfirmTripAsync(CurrentUserId, request, cancellationToken));
+        }
+
+        // PATCH /api/trips/shopping-items/12/purchased：採買模式打勾（body：{ "isPurchased": true }）
+        [HttpPatch("shopping-items/{itemId:int}/purchased")]
+        public Task<ActionResult<ShoppingItemPurchasedDTO>> SetItemPurchased(
+            int itemId,
+            [FromBody] SetItemPurchasedRequest request,
+            CancellationToken cancellationToken)
+        {
+            return HandleAsync<ShoppingItemPurchasedDTO>(async () =>
+                await _tripPlanningService.SetItemPurchasedAsync(
+                    CurrentUserId, itemId, request.IsPurchased, cancellationToken));
+        }
+
+        // POST /api/trips/plan：舊版相容（一次做完、直接存檔）
         [HttpPost("plan")]
-        public async Task<ActionResult<PlanTripResultDTO>> PlanTrip(
-           [FromBody] PlanTripApiRequest request,
-           CancellationToken cancellationToken)
+        public Task<ActionResult<PlanTripResultDTO>> PlanTrip(
+            [FromBody] PlanTripApiRequest request,
+            CancellationToken cancellationToken)
+        {
+            return HandleAsync<PlanTripResultDTO>(async () =>
+                await _tripPlanningService.PlanTripAsync(CurrentUserId, request.ToServiceRequest(), cancellationToken));
+        }
+
+        // 把 Service 丟出的可預期錯誤轉成對應的 HTTP 狀態碼
+        private async Task<ActionResult<T>> HandleAsync<T>(Func<Task<T>> action)
         {
             try
             {
-                var result = await _tripPlanningService.PlanTripAsync(
-                    CurrentUserId,
-                    new PlanTripRequestDTO
-                    {
-                        ShoppingListId = request.ShoppingListId,
-                        OriginLatitude = request.OriginLatitude,
-                        OriginLongitude = request.OriginLongitude,
-                        TravelMode = request.TravelMode,
-                        SearchRadiusMeters = request.SearchRadiusMeters
-                    },
-                    cancellationToken);
-
-                return Ok(result);
+                return Ok(await action());
             }
             catch (ArgumentException ex)
             {
-                // 「清單是空的」「附近沒有符合的店家」這類可預期的業務錯誤，回 400
                 return BadRequest(new { message = ex.Message });
             }
-            // 其餘未預期的例外（DbUpdateException、GoogleRoutesUnavailableException
-            // 沒被 Service 內部接住的部分…）交給 H.1 的 Global Exception Handler 統一處理，
-            // 這裡不用再另外 catch 一次，避免每支 Controller 都重複寫一樣的錯誤處理邏輯
+            catch (FoodMapNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (FoodMapForbiddenException ex)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { message = ex.Message });
+            }
+            catch (HttpRequestException)
+            {
+                return StatusCode(StatusCodes.Status502BadGateway,
+                    new { message = "Google 地圖服務暫時無法使用，請稍後再試" });
+            }
+            catch (TaskCanceledException) when (!HttpContext.RequestAborted.IsCancellationRequested)
+            {
+                return StatusCode(StatusCodes.Status504GatewayTimeout,
+                    new { message = "Google 地圖服務回應逾時，請稍後再試" });
+            }
         }
-
-        // 假設你專案裡已經有取得目前登入使用者 ID 的邏輯（例如 JWT Claim），
-        // 如果既有 TripsController 裡已經有 CurrentUserId 這個屬性，
-        // 這段就不用重複加，直接刪掉，沿用原本的就好
-        //protected int CurrentUserId =>
-        //    int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)
-        //        ?? throw new UnauthorizedAccessException("無法解析使用者身分"));
     }
 
-    // ---------- Request DTO：輸入驗證（對應 H.2）----------
+    // ---------- Request DTO：輸入驗證 ----------
+
+    public class SetItemPurchasedRequest
+    {
+        public bool IsPurchased { get; set; }
+    }
 
     public class PlanTripApiRequest
     {
-        [Required]
+        [Required, Range(1, int.MaxValue, ErrorMessage = "缺少採買清單")]
         public int ShoppingListId { get; set; }
 
         [Required, Range(-90, 90, ErrorMessage = "緯度必須介於 -90 到 90 之間")]
@@ -115,8 +168,14 @@ namespace prjFriendlyFoodWebAPI.Controllers.FoodMap
 
         [Range(100, 20000, ErrorMessage = "搜尋半徑必須介於 100 公尺到 20 公里之間")]
         public int SearchRadiusMeters { get; set; } = 3000;
+
+        public PlanTripRequestDTO ToServiceRequest() => new()
+        {
+            ShoppingListId = ShoppingListId,
+            OriginLatitude = OriginLatitude,
+            OriginLongitude = OriginLongitude,
+            TravelMode = TravelMode,
+            SearchRadiusMeters = SearchRadiusMeters
+        };
     }
 }
-
-
-    

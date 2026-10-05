@@ -1,12 +1,15 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using prjFriendlyFoodWebAPI.DTOs.Recipe;
 using prjFriendlyFoodWebAPI.DTOs.Recipe.Requests;
 using prjFriendlyFoodWebAPI.DTOs.Recipe.Responses;
+using prjFriendlyFoodWebAPI.Extensions;
 using prjFriendlyFoodWebAPI.Services.Recipe;
 
 namespace prjFriendlyFoodWebAPI.Controllers.Recipe;
 
 [Route("api/recipe")]
+[Authorize]
 public sealed class RecipeController(IRecipeService recipeService) : BaseController
 {
     [HttpGet]
@@ -15,14 +18,13 @@ public sealed class RecipeController(IRecipeService recipeService) : BaseControl
         [FromQuery] string? search,
         [FromQuery] int? categoryId,
         [FromQuery] string? tag,
-        [FromQuery] int? userId,
         CancellationToken cancellationToken)
     {
         var result = await recipeService.GetRecipesAsync(
             search,
             categoryId,
             tag,
-            userId,
+            User.GetUserId(),
             cancellationToken);
 
         return FromServiceResult(result);
@@ -48,13 +50,12 @@ public sealed class RecipeController(IRecipeService recipeService) : BaseControl
     [HttpGet("{recipeId:int}/availability")]
     public async Task<ActionResult<ApiResponse<RecipeAvailabilityDto>>> GetAvailability(
         int recipeId,
-        [FromQuery] int userId,
         [FromQuery] int targetServings,
         CancellationToken cancellationToken)
     {
         var result = await recipeService.GetAvailabilityAsync(
             recipeId,
-            userId,
+            User.GetUserId(),
             targetServings,
             cancellationToken);
         return FromServiceResult(result);
@@ -65,7 +66,10 @@ public sealed class RecipeController(IRecipeService recipeService) : BaseControl
         [FromBody] CreateRecipeRequestDto request,
         CancellationToken cancellationToken)
     {
-        var result = await recipeService.CreateRecipeAsync(request, cancellationToken);
+        var result = await recipeService.CreateRecipeAsync(
+            User.GetUserId(),
+            request,
+            cancellationToken);
         return FromServiceResult(result);
     }
 
@@ -75,17 +79,23 @@ public sealed class RecipeController(IRecipeService recipeService) : BaseControl
         [FromBody] UpdateRecipeRequestDto request,
         CancellationToken cancellationToken)
     {
-        var result = await recipeService.UpdateRecipeAsync(recipeId, request, cancellationToken);
+        var result = await recipeService.UpdateRecipeAsync(
+            recipeId,
+            User.GetUserId(),
+            request,
+            cancellationToken);
         return FromServiceResult(result);
     }
 
     [HttpDelete("{recipeId:int}")]
     public async Task<ActionResult<ApiResponse<bool>>> DeleteRecipe(
         int recipeId,
-        [FromQuery] int userId,
         CancellationToken cancellationToken)
     {
-        var result = await recipeService.DeleteRecipeAsync(recipeId, userId, cancellationToken);
+        var result = await recipeService.DeleteRecipeAsync(
+            recipeId,
+            User.GetUserId(),
+            cancellationToken);
         return FromServiceResult(result);
     }
 
@@ -94,27 +104,33 @@ public sealed class RecipeController(IRecipeService recipeService) : BaseControl
         [FromBody] CompleteCookingRequestDto request,
         CancellationToken cancellationToken)
     {
-        var result = await recipeService.CompleteCookingAsync(request, cancellationToken);
+        var result = await recipeService.CompleteCookingAsync(
+            User.GetUserId(),
+            request,
+            cancellationToken);
         return FromServiceResult(result);
     }
 
 
-    [HttpGet("shopping-list/user/{userId:int}")]
+    [HttpGet("shopping-list")]
     public async Task<ActionResult<ApiResponse<RecipeShoppingListDto>>> GetShoppingList(
-        int userId,
         CancellationToken cancellationToken)
     {
-        var result = await recipeService.GetShoppingListAsync(userId, cancellationToken);
+        var result = await recipeService.GetShoppingListAsync(
+            User.GetUserId(),
+            cancellationToken);
         return FromServiceResult(result);
     }
 
-    [HttpPut("shopping-list/user/{userId:int}")]
+    [HttpPut("shopping-list")]
     public async Task<ActionResult<ApiResponse<RecipeShoppingListDto>>> SaveShoppingList(
-        int userId,
         [FromBody] SaveRecipeShoppingListRequestDto request,
         CancellationToken cancellationToken)
     {
-        var result = await recipeService.SaveShoppingListAsync(userId, request, cancellationToken);
+        var result = await recipeService.SaveShoppingListAsync(
+            User.GetUserId(),
+            request,
+            cancellationToken);
         return FromServiceResult(result);
     }
 }

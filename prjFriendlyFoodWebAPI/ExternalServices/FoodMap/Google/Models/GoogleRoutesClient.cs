@@ -9,7 +9,10 @@ namespace prjFriendlyFoodWebAPI.ExternalServices.FoodMap.Google.Models
         private readonly HttpClient _httpClient;
         private readonly ILogger<GoogleRoutesClient> _logger;
         private readonly string _apiKey;
-        private readonly IAsyncPolicy<HttpResponseMessage> _resiliencePolicy;
+
+        // 修正：原本每個 GoogleRoutesClient 實例（HttpClientFactory 每次都建新的）各自建立一份 Policy，
+        // 斷路器的失敗次數永遠累積不起來。改成 static，整個應用程式共用同一個斷路器。
+        private static readonly IAsyncPolicy<HttpResponseMessage> ResiliencePolicy = BuildResiliencePolicy();
 
         private const string Endpoint = "https://routes.googleapis.com/directions/v2:computeRoutes";
 
@@ -29,22 +32,9 @@ namespace prjFriendlyFoodWebAPI.ExternalServices.FoodMap.Google.Models
             _apiKey = configuration["GoogleMaps:ApiKey"]
                 ?? throw new InvalidOperationException("GoogleMaps:ApiKey 未設定，請用 User Secrets 設定");
 
-            // Retry：遇到 5xx 或連線例外，重試 3 次，指數退避（2s, 4s, 8s）
-            var retryPolicy = Policy<HttpResponseMessage>
-                .Handle<HttpRequestException>()
-                .OrResult(r => (int)r.StatusCode >= 500)
-                .WaitAndRetryAsync(3, attempt => TimeSpan.FromSeconds(Math.Pow(2, attempt)));
-
-            // Circuit Breaker：連續失敗 5 次後斷開 30 秒，避免一直打已經掛掉的服務、浪費額度
-            var circuitBreakerPolicy = Policy<HttpResponseMessage>
-                .Handle<HttpRequestException>()
-                .OrResult(r => (int)r.StatusCode >= 500)
-                .CircuitBreakerAsync(5, TimeSpan.FromSeconds(30));
-
-            _resiliencePolicy = Policy.WrapAsync(retryPolicy, circuitBreakerPolicy);
         }
 
-        public async Task<GoogleRouteResult> ComputeRouteAsync(
+        public async Task<GoogleRouteResult?> ComputeRouteAsync(
             List<(double Latitude, double Longitude)> waypoints,
             GoogleTravelMode travelMode = GoogleTravelMode.Drive,
             CancellationToken cancellationToken = default)
@@ -74,15 +64,19 @@ namespace prjFriendlyFoodWebAPI.ExternalServices.FoodMap.Google.Models
 
             try
             {
-                using var request = new HttpRequestMessage(HttpMethod.Post, Endpoint)
-                {
-                    Content = JsonContent.Create(requestBody)
-                };
-                request.Headers.Add("X-Goog-Api-Key", _apiKey);
-                request.Headers.Add("X-Goog-FieldMask", FieldMask);
-
-                var response = await _resiliencePolicy.ExecuteAsync(
-                    ct => _httpClient.SendAsync(request, ct),
+                // 修正：HttpRequestMessage 只能送出一次，原本重試時重送同一個物件會直接丟例外，
+                // 所以每次重試都要重新建立 request
+                using var response = await ResiliencePolicy.ExecuteAsync(
+                    ct =>
+                    {
+                        var request = new HttpRequestMessage(HttpMethod.Post, Endpoint)
+                        {
+                            Content = JsonContent.Create(requestBody)
+                        };
+                        request.Headers.Add("X-Goog-Api-Key", _apiKey);
+                        request.Headers.Add("X-Goog-FieldMask", FieldMask);
+                        return _httpClient.SendAsync(request, ct);
+                    },
                     cancellationToken);
 
                 if (!response.IsSuccessStatusCode)
@@ -124,6 +118,23 @@ namespace prjFriendlyFoodWebAPI.ExternalServices.FoodMap.Google.Models
             GoogleTravelMode.Transit => "TRANSIT",
             _ => throw new ArgumentOutOfRangeException(nameof(travelMode), travelMode, "未支援的交通方式")
         };
+
+        // Retry：遇到 5xx 或連線例外，重試 3 次，指數退避（2s, 4s, 8s）
+        // Circuit Breaker：連續失敗 5 次後斷開 30 秒，避免一直打已經掛掉的服務、浪費額度
+        private static IAsyncPolicy<HttpResponseMessage> BuildResiliencePolicy()
+        {
+            var retryPolicy = Policy<HttpResponseMessage>
+                .Handle<HttpRequestException>()
+                .OrResult(r => (int)r.StatusCode >= 500)
+                .WaitAndRetryAsync(3, attempt => TimeSpan.FromSeconds(Math.Pow(2, attempt)));
+
+            var circuitBreakerPolicy = Policy<HttpResponseMessage>
+                .Handle<HttpRequestException>()
+                .OrResult(r => (int)r.StatusCode >= 500)
+                .CircuitBreakerAsync(5, TimeSpan.FromSeconds(30));
+
+            return Policy.WrapAsync(retryPolicy, circuitBreakerPolicy);
+        }
 
         private static object BuildWaypoint((double Latitude, double Longitude) point) => new
         {

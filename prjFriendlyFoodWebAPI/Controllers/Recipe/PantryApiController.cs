@@ -1,14 +1,17 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using prjFriendlyFoodWebAPI.DTOs.Recipe;
 using prjFriendlyFoodWebAPI.DTOs.Recipe.Requests;
 using prjFriendlyFoodWebAPI.DTOs.Recipe.Responses;
 using prjFriendlyFoodWebAPI.ExternalServices.SmartBot;
+using prjFriendlyFoodWebAPI.Extensions;
 using prjFriendlyFoodWebAPI.Services.Common;
 using prjFriendlyFoodWebAPI.Services.Recipe;
 
 namespace prjFriendlyFoodWebAPI.Controllers.Recipe;
 
 [Route("api/pantry")]
+[Authorize]
 public sealed class PantryApiController(
     IPantryAiClient pantryAiClient,
     IPantryIntakeService pantryIntakeService) : BaseController
@@ -41,7 +44,10 @@ public sealed class PantryApiController(
         [FromBody] AddPantryItemRequestDto request,
         CancellationToken cancellationToken)
     {
-        var result = await pantryIntakeService.AddItemAsync(request, cancellationToken);
+        var result = await pantryIntakeService.AddItemAsync(
+            User.GetUserId(),
+            request,
+            cancellationToken);
         return FromServiceResult(result);
     }
 

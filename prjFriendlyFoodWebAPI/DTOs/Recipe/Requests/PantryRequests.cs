@@ -5,9 +5,6 @@ namespace prjFriendlyFoodWebAPI.DTOs.Recipe.Requests;
 public sealed class CreatePantryItemRequestDto
 {
     [Range(1, int.MaxValue)]
-    public int UserId { get; init; }
-
-    [Range(1, int.MaxValue)]
     public int IngredientId { get; init; }
 
     [Range(0.01, 100000)]
@@ -27,9 +24,6 @@ public sealed class CreatePantryItemRequestDto
 
 public sealed class UpdatePantryItemRequestDto
 {
-    [Range(1, int.MaxValue)]
-    public int UserId { get; init; }
-
     [Range(0.01, 100000)]
     public decimal Amount { get; init; }
 
