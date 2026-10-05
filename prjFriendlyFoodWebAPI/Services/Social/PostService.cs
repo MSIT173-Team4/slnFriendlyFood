@@ -19,6 +19,7 @@ namespace prjFriendlyFoodWebAPI.Services.Social
                 .Include(p => p.FUser)
                 .Include(p => p.TPostLikes)
                 .Include(p => p.TPostBlockTables)
+                .Include(p => p.TPostBookmarks)
                 .FirstOrDefaultAsync(p => p.FPostId == postId && p.FPostState == 1);
 
             if (post == null) return null;
@@ -38,6 +39,8 @@ namespace prjFriendlyFoodWebAPI.Services.Social
                 PostDate = post.FPostDate,
                 SortId = post.FSortId,
                 IsLikedByCurrentUser = post.TPostLikes.Any(l => l.FUserId == currentUserId),
+                IsBookmarkedByCurrentUser = post.TPostBookmarks.Any(b => b.FUserId == currentUserId),
+
                 Blocks = post.TPostBlockTables
                     .OrderBy(b => b.FSortOrder)
                     .Select(b => new PostBlockDto

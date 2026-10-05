@@ -46,11 +46,6 @@ namespace prjFriendlyFoodWebAPI.Controllers.Forum
         public async Task<IActionResult> CreatePost([FromBody] CreateOrUpdatePostDto dto)
         {
 
-            //int currentUserId = GetCurrentUserId();
-            //if (currentUserId == 0) return Unauthorized("尚未登入");
-
-            //var postId = await _postService.CreatePostAsync(dto, currentUserId);
-            //return Ok(new { postId });
             try
             {
                 int currentUserId = GetCurrentUserId();

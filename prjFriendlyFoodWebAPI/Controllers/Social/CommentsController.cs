@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using prjFriendlyFoodWebAPI.DTOs.Social;
 using prjFriendlyFoodWebAPI.Services.Social;
+using System.Security.Claims;
 
 namespace prjFriendlyFoodWebAPI.Controllers.Social
 {
@@ -15,35 +16,61 @@ namespace prjFriendlyFoodWebAPI.Controllers.Social
             _commentService = commentService;
         }
 
-        private int CurrentUserId => 1;
+        private int GetCurrentUserId()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            return int.TryParse(userIdClaim, out int userId) ? userId : 0;
+        }
 
         [HttpGet("post/{postId}")]
         public async Task<IActionResult> GetComments(int postId)
         {
-            var comments = await _commentService.GetCommentsByPostIdAsync(postId, CurrentUserId);
+            int currentUserId = GetCurrentUserId();
+            var comments = await _commentService.GetCommentsByPostIdAsync(postId, currentUserId);
             return Ok(comments);
         }
 
         [HttpPost]
         public async Task<IActionResult> CreateComment([FromBody] CreateOrUpdateCommentDto dto)
         {
-            var commentId = await _commentService.CreateCommentAsync(dto, CurrentUserId);
-            return Ok(new { commentId });
+            int currentUserId = GetCurrentUserId();
+            if (currentUserId == 0) return Unauthorized("尚未登入");
+
+            if (string.IsNullOrWhiteSpace(dto.MessageContent))
+                return BadRequest("請輸入內容");
+
+            try
+            {
+                var commentId = await _commentService.CreateCommentAsync(dto, currentUserId);
+                return Ok(new { commentId });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteComment(int id)
         {
-            var DeleteSuccess = await _commentService.DeleteCommentAsync(id, CurrentUserId);
-            if (!DeleteSuccess) return BadRequest("未知錯誤");
+            int currentUserId = GetCurrentUserId();
+            if (currentUserId == 0) return Unauthorized("尚未登入");
+
+            var deleteSuccess = await _commentService.DeleteCommentAsync(id, currentUserId);
+            if (!deleteSuccess) return BadRequest("刪除失敗");
+
             return Ok();
         }
 
         [HttpPost("{id}/like")]
         public async Task<IActionResult> ToggleLike(int id)
         {
-            var success = await _commentService.ToggleLikeCommentAsync(id, CurrentUserId);
-            if (!success) return NotFound();
+            int currentUserId = GetCurrentUserId();
+            if (currentUserId == 0) return Unauthorized("尚未登入");
+
+            var success = await _commentService.ToggleLikeCommentAsync(id, currentUserId);
+            if (!success) return NotFound("操作失敗");
+
             return Ok();
         }
     }

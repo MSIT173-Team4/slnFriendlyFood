@@ -8,6 +8,5 @@ namespace prjFriendlyFoodWebAPI.Services.Social
         Task<int> CreateCommentAsync(CreateOrUpdateCommentDto dto, int userId);
         Task<bool> DeleteCommentAsync(int commentId, int userId);
         Task<bool> ToggleLikeCommentAsync(int commentId, int userId);
-
     }
 }
