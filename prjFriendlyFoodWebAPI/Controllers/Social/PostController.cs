@@ -22,7 +22,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Forum
         private int GetCurrentUserId()
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            return int.TryParse(userIdClaim, out int userId) ? userId : 5;
+            return int.TryParse(userIdClaim, out int userId) ? userId : 0;
         }
 
         [HttpGet]

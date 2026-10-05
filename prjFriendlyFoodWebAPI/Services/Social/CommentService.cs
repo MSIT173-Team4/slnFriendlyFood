@@ -61,6 +61,36 @@ namespace prjFriendlyFoodWebAPI.Services.Social
             await _context.SaveChangesAsync();
             return comment.FMessageId;
         }
+        public async Task<bool> UpdateCommentAsync(
+            int commentId,
+            CreateOrUpdateCommentDto dto,
+            int userId)
+        {
+            var comment = await _context.TMessageTables
+                .Include(m => m.FPost)
+                .FirstOrDefaultAsync(
+                    m => m.FMessageId == commentId &&
+                         m.FMessageState == 1);
+
+            if (comment == null)
+                return false;
+
+            bool isCommentOwner = comment.FUserId == userId;
+            //bool isPostOwner = comment.FPost != null &&
+            //                   comment.FPost.FUserId == userId;
+
+            if (!isCommentOwner /*&& !isPostOwner*/)
+                return false;
+
+            if (string.IsNullOrWhiteSpace(dto.MessageContent))
+                return false;
+
+            comment.FMessageContent = dto.MessageContent.Trim();
+
+            await _context.SaveChangesAsync();
+
+            return true;
+        }
 
         public async Task<bool> DeleteCommentAsync(int commentId, int userId)
         {
