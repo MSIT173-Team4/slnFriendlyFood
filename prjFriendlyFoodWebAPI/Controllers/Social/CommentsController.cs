@@ -49,6 +49,36 @@ namespace prjFriendlyFoodWebAPI.Controllers.Social
                 return BadRequest(ex.Message);
             }
         }
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateComment(
+            int id,
+            [FromBody] CreateOrUpdateCommentDto dto)
+        {
+            int currentUserId = GetCurrentUserId();
+
+            if (currentUserId == 0)
+                return Unauthorized("尚未登入");
+
+            if (string.IsNullOrWhiteSpace(dto.MessageContent))
+                return BadRequest("請輸入內容");
+
+            try
+            {
+                var updateSuccess = await _commentService.UpdateCommentAsync(
+                    id,
+                    dto,
+                    currentUserId);
+
+                if (!updateSuccess)
+                    return BadRequest("編輯失敗");
+
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteComment(int id)
