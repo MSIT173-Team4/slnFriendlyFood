@@ -65,7 +65,58 @@ namespace prjFriendlyFoodWebAPI.Hubs
                         roomId,
                         senderId,
                         content = message,
+                        imageUrl= (string?)null,
+                        messageType =1,
                         sendTime = DateTime.Now
+                    }
+                );
+        }
+        public async Task SendImage(int roomId, string imageUrl)
+        {
+            int senderId = int.Parse(
+                Context.User!
+                    .FindFirst(ClaimTypes.NameIdentifier)!
+                    .Value
+            );
+            bool allowed = await _db.TChatRooms
+            .AnyAsync(r =>
+                r.FId == roomId &&
+                (
+                    r.FUser1Id == senderId ||
+                    r.FUser2Id == senderId
+                )
+            );
+
+            if (!allowed)
+            {
+                throw new HubException("not allow send image");
+            }
+            var message = new TChat
+            {
+                FChatRoomId = roomId,
+                FSenderId = senderId,
+                FContent = null,
+                FFileUrl = imageUrl,
+                FMessageType = 2,
+                FCreatedTime = DateTime.Now
+            };
+
+            _db.TChats.Add(message);
+
+            await _db.SaveChangesAsync();
+
+            await Clients
+                .Group($"room-{roomId}")
+                .SendAsync(
+                    "ReceiveMessage",
+                    new
+                    {
+                        roomId = roomId,
+                        senderId = senderId,
+                        content = (string?)null,
+                        imageUrl = imageUrl,
+                        messageType = 2,
+                        createdAt = message.FCreatedTime
                     }
                 );
         }
