@@ -12,6 +12,7 @@ namespace prjFriendlyFoodWebAPI.DTOs.Social
         public int Likes { get; set; }
         public int Views { get; set; }
         public DateTime PostDate { get; set; }
+        public bool IsBookmarkedByCurrentUser { get; set; }
         public bool IsLikedByCurrentUser { get; set; }
     }
 }

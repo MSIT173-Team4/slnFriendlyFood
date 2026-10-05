@@ -27,5 +27,15 @@ namespace prjFriendlyFoodWebAPI.Services.Market
                 .Where(p => ids.Contains(p.FProductId) && p.FStock == 0 && p.FProductStatus == OnSale)
                 .ExecuteUpdateAsync(s => s.SetProperty(p => p.FProductStatus, SoldOut));
         }
+
+        // 取消訂單還原庫存後使用：這批商品中「已售完」但庫存已大於 0 的，改回販售中
+        // （賣家自己下架、審核中、違規的商品不受影響）
+        public static Task RestoreOnSaleAsync(FriendlyFoodDbContext context, IEnumerable<int> productIds)
+        {
+            var ids = productIds.Distinct().ToList();
+            return context.TMarketProducts
+                .Where(p => ids.Contains(p.FProductId) && p.FStock > 0 && p.FProductStatus == SoldOut)
+                .ExecuteUpdateAsync(s => s.SetProperty(p => p.FProductStatus, OnSale));
+        }
     }
 }

@@ -8,6 +8,7 @@ using prjFriendlyFoodWebAPI.Services.ImageUpload;
 using prjFriendlyFoodWebAPI.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using prjFriendlyFoodWebAPI.Services.Market;
+using prjFriendlyFoodWebAPI.Services.Recipe;
 
 namespace prjFriendlyFoodWebAPI.Controllers.Market
 {
@@ -20,6 +21,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
         private readonly ISellerIdentityService _sellerIdentity;
 
         private const int MaxImageCount = 5;
+        private const int PublicPageSize = 12;   // 商城商品列表一頁幾筆（前端 pageSize 要一致）
 
         // 注入 IWebHostEnvironment 才能拿到 wwwroot 的實際路徑
         public MarketProductController(
@@ -101,6 +103,10 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                     return BadRequest(new { message = error });
             }
 
+            if (dto.IngredientId.HasValue &&
+                !await _context.TIngredients.AnyAsync(i => i.FId == dto.IngredientId.Value))
+                return BadRequest(new { message = "食材不存在" });
+
             // ===== Step 2：上傳到 Cloudinary =====
             // 用 List 記住「已經傳上去的」，失敗時才知道要清掉哪些
 
@@ -140,7 +146,8 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                 FExpirationDate = dto.ExpirationDate,
                 FProductStatus = dto.ProductStatus,
                 FReportCount = 0,
-                FProductDate = DateTime.Now
+                FProductDate = DateTime.Now,
+                FIngredientId = dto.IngredientId
             };
 
             // 掛在導覽屬性底下，EF 把新商品的 FProductId 填進每張圖片
@@ -226,8 +233,8 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
             // 分頁 + mapping 到 DTO
             var totalCount = await query.CountAsync();
             var items = await query
-                .Skip((dto.Page - 1) * 10)
-                .Take(10)
+                .Skip((Math.Max(dto.Page, 1) - 1) * PublicPageSize)
+                .Take(PublicPageSize)
                 .Select(p => new MarketPublicProductListDto
                 {
                     ProductId = p.FProductId,
@@ -367,6 +374,11 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                 .Take(4)
                 .ToListAsync();
 
+            foreach (var recipe in recipes)
+            {
+                recipe.ImageUrl = RecipeImageUrlResolver.Resolve(recipe.RecipeName, recipe.ImageUrl);
+            }
+
             return Ok(recipes);
         }
 
@@ -486,6 +498,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                     BrandOrOrigin = p.FBrandOrOrigin,
                     ManufacturingDate = p.FManufacturingDate,
                     ExpirationDate = p.FExpirationDate,
+                    IngredientId = p.FIngredientId,
                     ProductStatus = p.FProductStatus,
                     ProductsCategoryNo = p.FProductsCategoryNo,
                     Images = p.TMarketProductImages
@@ -529,6 +542,10 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                 return BadRequest(new { message = "商品分類不存在" });
 
             var deleteIds = dto.DeleteImageIds?.ToList() ?? new List<int>();
+
+            if (dto.IngredientId.HasValue &&
+                !await _context.TIngredients.AnyAsync(i => i.FId == dto.IngredientId.Value))
+                return BadRequest(new { message = "食材不存在" });
 
             // 傳入不屬於此商品的圖片 Id → 明確回報，而不是安靜地忽略
             var ownedImageIds = product.TMarketProductImages
@@ -584,6 +601,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
             product.FDescription = dto.Description;
             product.FManufacturingDate = dto.ManufacturingDate;
             product.FExpirationDate = dto.ExpirationDate;
+            product.FIngredientId = dto.IngredientId;
 
             if (dto.ProductStatus.HasValue)
                 product.FProductStatus = dto.ProductStatus.Value;
@@ -677,6 +695,19 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
             await _context.SaveChangesAsync();
 
             return Ok(new { message = "庫存更新成功", stock = product.FStock, productStatus = product.FProductStatus });
+        }
+
+        // GET /api/MarketProduct/ingredients — 新增/編輯商品時的食材下拉選單
+        [HttpGet("ingredients")]
+        [Authorize]
+        public async Task<IActionResult> GetIngredients()
+        {
+            var list = await _context.TIngredients
+                .AsNoTracking()
+                .OrderBy(i => i.FName)
+                .Select(i => new { ingredientId = i.FId, name = i.FName })
+                .ToListAsync();
+            return Ok(list);
         }
     }
 
