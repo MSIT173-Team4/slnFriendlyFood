@@ -2,14 +2,14 @@ using CloudinaryDotNet;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore;
+
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using prjFriendlyFoodWebAPI.Extensions;
 using prjFriendlyFoodWebAPI.ExternalServices.FoodMap.Google.Interfaces;
 using prjFriendlyFoodWebAPI.ExternalServices.FoodMap.Google.Models;
 using prjFriendlyFoodWebAPI.Models;
-using prjFriendlyFoodWebAPI.Models;
+
 using prjFriendlyFoodWebAPI.Services.FoodMap;
 using prjFriendlyFoodWebAPI.Services.FoodMap.Interfaces;
 using prjFriendlyFoodWebAPI.Services.ImageUpload;
@@ -17,6 +17,7 @@ using prjFriendlyFoodWebAPI.Services.Market;
 using prjFriendlyFoodWebAPI.Services.Member;
 using prjFriendlyFoodWebAPI.Services.Social;
 using System.Text;
+using prjFriendlyFoodWebAPI.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -54,6 +55,7 @@ if (allowedOrigins is null || allowedOrigins.Length == 0)
     allowedOrigins = ["http://localhost:4200", "http://127.0.0.1:4200"];
 }
 
+builder.Services.AddSignalR();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAngularClient", policy =>
@@ -158,7 +160,7 @@ if (app.Environment.IsDevelopment())
         await app.SeedRecipeDevelopmentDataAsync();
     }
 }
-
+app.MapHub<ChatHub>("/chatHub");
 app.UseCors("AllowAngularClient");
 app.UseStaticFiles();
 app.UseHttpsRedirection();

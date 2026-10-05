@@ -37,6 +37,12 @@ public partial class TUser
 
     public virtual ICollection<TApply> TApplies { get; set; } = new List<TApply>();
 
+    public virtual ICollection<TChatRoom> TChatRoomFUser1s { get; set; } = new List<TChatRoom>();
+
+    public virtual ICollection<TChatRoom> TChatRoomFUser2s { get; set; } = new List<TChatRoom>();
+
+    public virtual ICollection<TChat> TChats { get; set; } = new List<TChat>();
+
     public virtual ICollection<TConversationMember> TConversationMembers { get; set; } = new List<TConversationMember>();
 
     public virtual ICollection<TEmailVerification> TEmailVerifications { get; set; } = new List<TEmailVerification>();
