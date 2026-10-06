@@ -106,12 +106,65 @@ namespace prjFriendlyFoodWebAPI.Controllers.Chat
             {
                 roomId = m.FChatRoomId,
                 senderId = m.FSenderId,
+                messageType=m.FMessageType,
+                imageUrl=m.FFileUrl,
                 content = m.FContent,
                 sendTime = m.FCreatedTime
             })
             .ToListAsync();
 
             return Ok(messages);
+        }
+        [Authorize]
+        [HttpPost("UploadChatImage")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UploadChatImage(
+        [FromForm] IFormFile image)
+        {
+            if (image == null || image.Length == 0)
+            {
+                return BadRequest(new
+                {
+                    message = "請選擇圖片"
+                });
+            }
+
+            string extension =
+                Path.GetExtension(image.FileName)
+                    .ToLowerInvariant();
+
+            string fileName =
+                $"{Guid.NewGuid()}{extension}";
+
+            string folderPath = Path.Combine(
+                Directory.GetCurrentDirectory(),
+                "wwwroot",
+                "images",
+                "Chat"
+            );
+
+            if (!Directory.Exists(folderPath))
+            {
+                Directory.CreateDirectory(folderPath);
+            }
+
+            string filePath = Path.Combine(
+                folderPath,
+                fileName
+            );
+
+            using var stream =
+                new FileStream(filePath, FileMode.Create);
+
+            await image.CopyToAsync(stream);
+
+            string imageUrl =
+                $"/images/Chat/{fileName}";
+
+            return Ok(new
+            {
+                imageUrl
+            });
         }
     }
 }
