@@ -208,7 +208,8 @@ namespace prjFriendlyFoodWebAPI.Services.Member
             var result = new UserRecipeStatDTO
             {
                 Recipes = recipes,
-                TotalViews = recipes.Sum(r => r.Views)
+                TotalViews = recipes.Sum(r => r.Views),
+                TotalLike=recipes.Sum(r => r.Likes),
             };
             return result;
         }
