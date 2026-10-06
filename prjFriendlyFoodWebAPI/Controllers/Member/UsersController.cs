@@ -57,7 +57,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Member
             TUser user = await _us.AddUser(u, password);
             string token=await _ts.GernateTokenString(user.FId, "EmailVerification");
             string verifyUrl =
-            $"http://localhost:4200/verifyemail?token={token}";
+            $"https://friendlyfood-web-7tsmeq4eta-de.a.run.app/verifyemail?token={token}";
 
                     string body = $"""
             <h2>FriendlyFood 信箱驗證</h2>
