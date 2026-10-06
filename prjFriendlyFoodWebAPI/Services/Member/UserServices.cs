@@ -188,7 +188,7 @@ namespace prjFriendlyFoodWebAPI.Services.Member
         public async Task<UserRecipeStatDTO> GetRecipe(int id)
         {
             var recipes = await _db.TRecipes
-            .Where(r => r.FUserId == id)
+            .Where(r => r.FUserId == id && r.FStatus == 1)
             .Select(r => new UserRecipeDTO
             {
                 RecipeId = r.FRecipeId,
