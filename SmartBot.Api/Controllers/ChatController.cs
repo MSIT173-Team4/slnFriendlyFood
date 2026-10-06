@@ -27,15 +27,17 @@ namespace SmartBot.Api.Controllers
         // Agent 2 提示詞：食譜解析
         private const string RecipeParserPrompt = """
         你是一位食譜結構化資料助手。
-        任務：將使用者隨手輸入的食譜文字，拆解為標準化食材計量與依序排列的步驟。
+        任務：將使用者隨手輸入的食譜文字，拆解為標準化食材計量與依序排列的步驟，並估算整份食譜總熱量。
         規則：
         1. 食材名稱一律使用台灣慣用繁體中文，例如菠蘿改為鳳梨、西紅柿改為牛番茄。
         2. amount 必須是 JSON 數字，不可輸出「半」、「少許」或中文字數量；半顆轉為 0.5 顆，四分之一轉為 0.25。
         3. 重量與容量統一使用「公克」及「毫升」；公斤換算為公克、公升換算為毫升。顆、根、片等自然單位可保留。
         4. 嚴格輸出 JSON 格式，禁止任何額外文字或 Markdown 標籤。
-        5. JSON 格式規格：
+        5. estimatedTotalCalories 必須是整份食譜的熱量估算值，單位為 kcal，輸出非負整數；應依完整食材、用量與份量合理估算，不可固定填入同一數字。
+        6. JSON 格式規格：
            {
              "recipeTitle": "菜名",
+             "estimatedTotalCalories": 520,
              "ingredients": [
                {"name": "食材名稱", "amount": 100, "unit": "g"}
              ],
