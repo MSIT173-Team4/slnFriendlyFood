@@ -8,6 +8,7 @@ using prjFriendlyFoodWebAPI.Services.ImageUpload;
 using prjFriendlyFoodWebAPI.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using prjFriendlyFoodWebAPI.Services.Market;
+using prjFriendlyFoodWebAPI.Services.Recipe;
 
 namespace prjFriendlyFoodWebAPI.Controllers.Market
 {
@@ -372,6 +373,11 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                 )
                 .Take(4)
                 .ToListAsync();
+
+            foreach (var recipe in recipes)
+            {
+                recipe.ImageUrl = RecipeImageUrlResolver.Resolve(recipe.RecipeName, recipe.ImageUrl);
+            }
 
             return Ok(recipes);
         }
