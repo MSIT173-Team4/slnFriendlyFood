@@ -35,6 +35,8 @@ public sealed record RecipeDetailDto(
     int Views,
     int Likes,
     int Favorites,
+    bool IsLiked,
+    bool IsFavorite,
     string CategoryName,
     int AuthorId,
     string AuthorName,

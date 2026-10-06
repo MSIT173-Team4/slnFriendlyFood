@@ -7,6 +7,7 @@ public sealed record IngredientLocalizationDto(
 
 public sealed record ParsedRecipeDto(
     string RecipeTitle,
+    int EstimatedTotalCalories,
     IReadOnlyCollection<ParsedRecipeIngredientDto> Ingredients,
     IReadOnlyCollection<ParsedRecipeStepDto> Steps);
 

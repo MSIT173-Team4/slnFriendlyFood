@@ -15,6 +15,7 @@ public interface IRecipeService
 
     Task<ServiceResult<RecipeDetailDto>> GetRecipeAsync(
         int recipeId,
+        int userId,
         CancellationToken cancellationToken);
 
     Task<ServiceResult<RecipeDetailDto>> CreateRecipeAsync(
