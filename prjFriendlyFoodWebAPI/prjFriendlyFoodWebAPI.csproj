@@ -39,6 +39,7 @@
 
   <ItemGroup>
     <Folder Include="wwwroot\images\Member\" />
+    <Folder Include="wwwroot\images\Chat\" />
     <Folder Include="wwwroot\ProductImageUploads\" />
   </ItemGroup>
 
