@@ -159,9 +159,10 @@ public sealed class RecipeService(
 
     public async Task<ServiceResult<RecipeDetailDto>> GetRecipeAsync(
         int recipeId,
+        int userId,
         CancellationToken cancellationToken)
     {
-        var detail = await LoadRecipeDetailAsync(recipeId, cancellationToken);
+        var detail = await LoadRecipeDetailAsync(recipeId, userId, cancellationToken);
 
         return detail is null
             ? ServiceResult<RecipeDetailDto>.NotFound("找不到公開的食譜資料。")
@@ -217,7 +218,7 @@ public sealed class RecipeService(
 
             await transaction.CommitAsync(cancellationToken);
 
-            var detail = await LoadRecipeDetailAsync(recipe.FRecipeId, cancellationToken);
+            var detail = await LoadRecipeDetailAsync(recipe.FRecipeId, userId, cancellationToken);
             return ServiceResult<RecipeDetailDto>.Created(detail!, "食譜已建立。");
         }
         catch (DbUpdateException exception)
@@ -282,7 +283,7 @@ public sealed class RecipeService(
 
             await transaction.CommitAsync(cancellationToken);
 
-            var detail = await LoadRecipeDetailAsync(recipeId, cancellationToken);
+            var detail = await LoadRecipeDetailAsync(recipeId, userId, cancellationToken);
             return ServiceResult<RecipeDetailDto>.Success(detail!, "食譜已更新。");
         }
         catch (DbUpdateException exception)
@@ -822,6 +823,7 @@ public sealed class RecipeService(
 
     private async Task<RecipeDetailDto?> LoadRecipeDetailAsync(
         int recipeId,
+        int userId,
         CancellationToken cancellationToken)
     {
         var header = await (
@@ -892,6 +894,12 @@ public sealed class RecipeService(
             .ToListAsync(cancellationToken);
 
         var recipe = header.Recipe;
+        var isLiked = await context.TRecipeLikes
+            .AsNoTracking()
+            .AnyAsync(item => item.FRecipeId == recipeId && item.FUserId == userId, cancellationToken);
+        var isFavorite = await context.TRecipeFavorites
+            .AsNoTracking()
+            .AnyAsync(item => item.FRecipeId == recipeId && item.FUserId == userId, cancellationToken);
         return new RecipeDetailDto(
             recipe.FRecipeId,
             recipe.FUserId,
@@ -908,6 +916,8 @@ public sealed class RecipeService(
             recipe.FViews,
             recipe.FLikes,
             recipe.FFavorites,
+            isLiked,
+            isFavorite,
             header.CategoryName,
             header.AuthorId,
             header.AuthorName,

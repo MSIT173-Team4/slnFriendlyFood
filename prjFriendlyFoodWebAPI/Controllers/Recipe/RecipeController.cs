@@ -43,7 +43,10 @@ public sealed class RecipeController(IRecipeService recipeService) : BaseControl
         int recipeId,
         CancellationToken cancellationToken)
     {
-        var result = await recipeService.GetRecipeAsync(recipeId, cancellationToken);
+        var result = await recipeService.GetRecipeAsync(
+            recipeId,
+            User.GetUserId(),
+            cancellationToken);
         return FromServiceResult(result);
     }
 
