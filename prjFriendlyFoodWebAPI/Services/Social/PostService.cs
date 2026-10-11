@@ -24,7 +24,7 @@ namespace prjFriendlyFoodWebAPI.Services.Social
 
             if (post == null) return null;
 
-            post.FViews += 1;
+            post.FViews++;
             await _context.SaveChangesAsync();
 
             return new PostDetailDto
@@ -63,7 +63,7 @@ namespace prjFriendlyFoodWebAPI.Services.Social
                 FSortId = dto.SortId,
                 FLikes = 0,
                 FViews = 0,
-                FPostDate = DateTime.Now,
+                FPostDate = DateTime.UtcNow,
                 FPostState = 1,
                 TPostBlockTables = new List<TPostBlockTable>()
             };
@@ -78,7 +78,7 @@ namespace prjFriendlyFoodWebAPI.Services.Social
                     FContent = b.Content,
                     FMediaUrl = b.MediaUrl,
                     FSortOrder = order++,
-                    FCreateDate = DateTime.Now
+                    FCreateDate = DateTime.UtcNow
                 });
             }
 
@@ -108,10 +108,10 @@ namespace prjFriendlyFoodWebAPI.Services.Social
                     FContent = b.Content,
                     FMediaUrl = b.MediaUrl,
                     FSortOrder = order++,
-                    FCreateDate = DateTime.Now
+                    FCreateDate = DateTime.UtcNow
                 });
             }
-
+            post.FViews--;
             await _context.SaveChangesAsync();
             return true;
         }
@@ -215,7 +215,7 @@ namespace prjFriendlyFoodWebAPI.Services.Social
                 {
                     FPostId = postId,
                     FUserId = currentUserId,
-                    FBookmarkDate = DateTime.Now
+                    FBookmarkDate = DateTime.UtcNow
                 });
                 isBookmarked = true;
             }
