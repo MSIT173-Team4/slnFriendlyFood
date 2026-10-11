@@ -296,7 +296,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
             try
             {
                 // 先搶優惠券名額；任何一張搶不到就整筆 rollback，名額也會一起還回去
-                foreach (var couponId in couponIdsToUse)
+                foreach (var couponId in couponIdsToUse.OrderBy(id => id))
                 {
                     if (!await _couponService.TryUseAsync(couponId))
                     {
@@ -306,7 +306,7 @@ namespace prjFriendlyFoodWebAPI.Controllers.Market
                 }
                 // 扣庫存：判斷與扣除在同一句 SQL 完成，兩人同時搶最後一件也不會超賣；
                 // 同時要求商品仍為「販售中」，避免購買已下架的商品
-                foreach (var item in cartItems)
+                foreach (var item in cartItems.OrderBy(c => c.FProductId))
                 {
                     var affected = await _context.TMarketProducts
                         .Where(p => p.FProductId == item.FProductId
