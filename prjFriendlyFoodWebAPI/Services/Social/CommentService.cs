@@ -37,7 +37,10 @@ namespace prjFriendlyFoodWebAPI.Services.Social
                     : null,
                 MessageContent = m.FMessageContent,
                 Likes = m.FLikes,
-                MessageDate = m.FMessageDate,
+                MessageDate = DateTime.SpecifyKind(
+                    m.FMessageDate,
+                    DateTimeKind.Utc
+                ),
                 IsLikedByCurrentUser = m.TMessageLikes.Any(l => l.FUserId == currentUserId)
             }).ToList();
 

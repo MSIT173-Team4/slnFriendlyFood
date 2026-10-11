@@ -36,7 +36,10 @@ namespace prjFriendlyFoodWebAPI.Services.Social
                 Title = post.FTitle,
                 Likes = post.FLikes,
                 Views = post.FViews,
-                PostDate = post.FPostDate,
+                PostDate = DateTime.SpecifyKind(
+                    post.FPostDate,
+                    DateTimeKind.Utc
+                ),
                 SortId = post.FSortId,
                 IsLikedByCurrentUser = post.TPostLikes.Any(l => l.FUserId == currentUserId),
                 IsBookmarkedByCurrentUser = post.TPostBookmarks.Any(b => b.FUserId == currentUserId),
@@ -182,7 +185,10 @@ namespace prjFriendlyFoodWebAPI.Services.Social
                     Likes = p.FLikes,
                     Views = p.FViews,
                     CommentCount = p.TMessageTables.Count(),
-                    PostDate = p.FPostDate,
+                    PostDate = DateTime.SpecifyKind(
+                        p.FPostDate,
+                        DateTimeKind.Utc
+                    ),
                     IsLikedByCurrentUser = _context.TPostLikes.Any(l => l.FPostId == p.FPostId && l.FUserId == currentUserId),
                     IsBookmarkedByCurrentUser = _context.TPostBookmarks.Any(b => b.FPostId == p.FPostId && b.FUserId == currentUserId)
                 })
