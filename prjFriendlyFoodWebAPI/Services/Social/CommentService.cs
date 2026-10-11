@@ -37,7 +37,10 @@ namespace prjFriendlyFoodWebAPI.Services.Social
                     : null,
                 MessageContent = m.FMessageContent,
                 Likes = m.FLikes,
-                MessageDate = m.FMessageDate,
+                MessageDate = DateTime.SpecifyKind(
+                    m.FMessageDate,
+                    DateTimeKind.Utc
+                ),
                 IsLikedByCurrentUser = m.TMessageLikes.Any(l => l.FUserId == currentUserId)
             }).ToList();
 
@@ -53,7 +56,7 @@ namespace prjFriendlyFoodWebAPI.Services.Social
                 FReplyMessageId = dto.ReplyMessageId,
                 FMessageContent = dto.MessageContent,
                 FLikes = 0,
-                FMessageDate = DateTime.Now,
+                FMessageDate = DateTime.UtcNow,
                 FMessageState = 1
             };
 
@@ -76,10 +79,7 @@ namespace prjFriendlyFoodWebAPI.Services.Social
                 return false;
 
             bool isCommentOwner = comment.FUserId == userId;
-            //bool isPostOwner = comment.FPost != null &&
-            //                   comment.FPost.FUserId == userId;
-
-            if (!isCommentOwner /*&& !isPostOwner*/)
+            if (!isCommentOwner)
                 return false;
 
             if (string.IsNullOrWhiteSpace(dto.MessageContent))
