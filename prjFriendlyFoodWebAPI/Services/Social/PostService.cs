@@ -24,7 +24,7 @@ namespace prjFriendlyFoodWebAPI.Services.Social
 
             if (post == null) return null;
 
-            post.FViews += 1;
+            post.FViews++;
             await _context.SaveChangesAsync();
 
             return new PostDetailDto
@@ -36,7 +36,10 @@ namespace prjFriendlyFoodWebAPI.Services.Social
                 Title = post.FTitle,
                 Likes = post.FLikes,
                 Views = post.FViews,
-                PostDate = post.FPostDate,
+                PostDate = DateTime.SpecifyKind(
+                    post.FPostDate,
+                    DateTimeKind.Utc
+                ),
                 SortId = post.FSortId,
                 IsLikedByCurrentUser = post.TPostLikes.Any(l => l.FUserId == currentUserId),
                 IsBookmarkedByCurrentUser = post.TPostBookmarks.Any(b => b.FUserId == currentUserId),
@@ -63,7 +66,7 @@ namespace prjFriendlyFoodWebAPI.Services.Social
                 FSortId = dto.SortId,
                 FLikes = 0,
                 FViews = 0,
-                FPostDate = DateTime.Now,
+                FPostDate = DateTime.UtcNow,
                 FPostState = 1,
                 TPostBlockTables = new List<TPostBlockTable>()
             };
@@ -78,7 +81,7 @@ namespace prjFriendlyFoodWebAPI.Services.Social
                     FContent = b.Content,
                     FMediaUrl = b.MediaUrl,
                     FSortOrder = order++,
-                    FCreateDate = DateTime.Now
+                    FCreateDate = DateTime.UtcNow
                 });
             }
 
@@ -108,10 +111,10 @@ namespace prjFriendlyFoodWebAPI.Services.Social
                     FContent = b.Content,
                     FMediaUrl = b.MediaUrl,
                     FSortOrder = order++,
-                    FCreateDate = DateTime.Now
+                    FCreateDate = DateTime.UtcNow
                 });
             }
-
+            post.FViews--;
             await _context.SaveChangesAsync();
             return true;
         }
@@ -182,7 +185,10 @@ namespace prjFriendlyFoodWebAPI.Services.Social
                     Likes = p.FLikes,
                     Views = p.FViews,
                     CommentCount = p.TMessageTables.Count(),
-                    PostDate = p.FPostDate,
+                    PostDate = DateTime.SpecifyKind(
+                        p.FPostDate,
+                        DateTimeKind.Utc
+                    ),
                     IsLikedByCurrentUser = _context.TPostLikes.Any(l => l.FPostId == p.FPostId && l.FUserId == currentUserId),
                     IsBookmarkedByCurrentUser = _context.TPostBookmarks.Any(b => b.FPostId == p.FPostId && b.FUserId == currentUserId)
                 })
@@ -215,7 +221,7 @@ namespace prjFriendlyFoodWebAPI.Services.Social
                 {
                     FPostId = postId,
                     FUserId = currentUserId,
-                    FBookmarkDate = DateTime.Now
+                    FBookmarkDate = DateTime.UtcNow
                 });
                 isBookmarked = true;
             }

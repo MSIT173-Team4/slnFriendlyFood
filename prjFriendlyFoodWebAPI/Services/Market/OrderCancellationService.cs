@@ -114,22 +114,9 @@ namespace prjFriendlyFoodWebAPI.Services.Market
                 .Where(o => o.FBatchId == batchId)
                 .ExecuteUpdateAsync(s => s.SetProperty(o => o.FOrderStatus, MarketStatus.Order.Cancelled));
 
-            // 3. 還原庫存（同一商品合併數量）
-            var lines = await _context.TMarketOrderDetails
-                .Where(d => d.FOrder.FBatchId == batchId)
-                .GroupBy(d => d.FProductId)
-                .Select(g => new { ProductId = g.Key, Quantity = g.Sum(d => d.FQuantity) })
-                .ToListAsync();
+            // 上鎖順序與結帳一致：優惠券 → 商品，且各自依 ID 由小到大，避免死結
 
-            foreach (var line in lines)
-            {
-                await _context.TMarketProducts
-                    .Where(p => p.FProductId == line.ProductId)
-                    .ExecuteUpdateAsync(s => s.SetProperty(p => p.FStock, p => p.FStock + line.Quantity));
-            }
-            await ProductStockRules.RestoreOnSaleAsync(_context, lines.Select(l => l.ProductId));
-
-            // 4. 還原優惠券名額：Distinct 讓分攤到多張子訂單的全站券只減一次
+            // 3. 還原優惠券名額：Distinct 讓分攤到多張子訂單的全站券只減一次
             var couponIds = await _context.TMarketOrderDiscounts
                 .Where(od => od.FOrder.FBatchId == batchId)
                 .Select(od => od.FCouponId)
@@ -143,8 +130,20 @@ namespace prjFriendlyFoodWebAPI.Services.Market
                     .ExecuteUpdateAsync(s => s.SetProperty(c => c.FUsedCount, c => c.FUsedCount - 1));
             }
 
-            await tx.CommitAsync();
-            _logger.LogInformation("已取消結帳批次 {BatchId}", batchId);
+            // 4. 還原庫存（同一商品合併數量）
+            var lines = await _context.TMarketOrderDetails
+                .Where(d => d.FOrder.FBatchId == batchId)
+                .GroupBy(d => d.FProductId)
+                .Select(g => new { ProductId = g.Key, Quantity = g.Sum(d => d.FQuantity) })
+                .ToListAsync();
+
+            foreach (var line in lines.OrderBy(l => l.ProductId))
+            {
+                await _context.TMarketProducts
+                    .Where(p => p.FProductId == line.ProductId)
+                    .ExecuteUpdateAsync(s => s.SetProperty(p => p.FStock, p => p.FStock + line.Quantity));
+            }
+            await ProductStockRules.RestoreOnSaleAsync(_context, lines.Select(l => l.ProductId)); _logger.LogInformation("已取消結帳批次 {BatchId}", batchId);
             return true;
         }
     }
