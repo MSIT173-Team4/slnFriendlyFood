@@ -143,7 +143,9 @@ namespace prjFriendlyFoodWebAPI.Services.Market
                     .Where(p => p.FProductId == line.ProductId)
                     .ExecuteUpdateAsync(s => s.SetProperty(p => p.FStock, p => p.FStock + line.Quantity));
             }
-            await ProductStockRules.RestoreOnSaleAsync(_context, lines.Select(l => l.ProductId)); _logger.LogInformation("已取消結帳批次 {BatchId}", batchId);
+            await ProductStockRules.RestoreOnSaleAsync(_context, lines.Select(l => l.ProductId));
+            await tx.CommitAsync();
+            _logger.LogInformation("已取消結帳批次 {BatchId}", batchId);
             return true;
         }
     }
