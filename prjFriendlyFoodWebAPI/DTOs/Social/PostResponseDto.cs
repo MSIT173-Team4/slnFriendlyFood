@@ -1,5 +1,10 @@
 ﻿namespace prjFriendlyFoodWebAPI.DTOs.Social
 {
+    //貼文清單的每一則貼文需要顯示的資訊
+    /*需要貼文的ID、使用者ID、
+     * 使用者名稱、使用者大頭貼、
+     * 貼文標題、按讚數、瀏覽數、貼文日期，
+     * 以及是否被當前使用者收藏或按讚*/
     public class PostResponseDto
     {
         public int PostId { get; set; }

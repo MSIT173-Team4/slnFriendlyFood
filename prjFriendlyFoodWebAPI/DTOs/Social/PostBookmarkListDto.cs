@@ -1,5 +1,6 @@
 ﻿namespace prjFriendlyFoodWebAPI.DTOs.Social
 {
+    //收藏貼文清單需要顯示的資訊
     public class PostBookmarkListDto
     {
         public int BookmarkId { get; set; }

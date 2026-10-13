@@ -2,6 +2,7 @@
 
 namespace prjFriendlyFoodWebAPI.DTOs.Social
 {
+    //貼文的資訊
     public class PostListDto
     {
         public int PostId { get; set; }
